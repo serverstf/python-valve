@@ -303,8 +303,6 @@ class Message(object):
 		buffer = packet
 		values = {}
 		for field in cls.fields:
-			print "Decoding {}".format(field.__class__.__name__)
-			print "\t" + " ".join([c.encode("hex") for c in buffer])
 			values[field.name], buffer = field.decode(buffer, values)
 			
 		return cls(buffer, **values)
