@@ -3,7 +3,10 @@ import struct
 
 from steam.servers import BrokenMessageError, SPLIT, NO_SPLIT
 
-class BufferExhaustedError(BrokenMessageError): pass
+class BufferExhaustedError(BrokenMessageError):
+	
+	def __init__(self):
+		BrokenMessageError.__init__(self, "Buffer has been exhausted; incomplete message")
 
 def use_default(func):
 	
@@ -20,7 +23,7 @@ def needs_buffer(func):
 	
 	def needs_buffer(self, buffer, values):
 		if len(buffer) == 0:
-			raise BufferExhaustedError("Buffer has been exhausted; incomplete message")
+			raise BufferExhaustedError
 			
 		return func(self, buffer, values)
 	
@@ -97,6 +100,9 @@ class MessageField(object):
 		"""
 		
 		field_size = struct.calcsize(self.format)
+		if len(buffer) < field_size:
+			raise BufferExhaustedError
+		
 		field_data = buffer[:field_size]
 		left_overs = buffer[field_size:]
 		
@@ -167,18 +173,48 @@ class MessageArrayField(MessageField):
 		
 		entries = []
 		count = 0
+		
 		while count < self.count(values):
+			
+			# Set start_buffer to the beginning of the buffer so that in
+			# the case of buffer exhaustion it can return from the
+			# start of the entry, not half-way through it.
+			#
+			# For example if you had the fields:
+			#
+			#		ComplexField =
+			#			LongField
+			#			ShortField
+			#
+			#		MessageArrayField(ComplexField, count=MessageArrayField.all())
+			#		ByteField()
+			#
+			# When attempting to decode the end of the buffer FF FF FF FF 00
+			# the first four bytes will be consumed by LongField,
+			# however ShortField will fail with BufferExhaustedError as
+			# there's only one byte left. However, there is enough left
+			# for the trailing ByteField. So when ComplexField
+			# propagates ShortField's BufferExhaustedError the buffer will
+			# only have the 00 byte remaining. The exception if caught
+			# and buffer reverted to FF FF FF FF 00. This is passed
+			# to ByteField which consumes one byte and the reamining
+			# FF FF FF 00 bytes and stored as message payload.
+			#
+			# This is very much an edge cases. :/
+			start_buffer = buffer
+			
 			try:
 				entry = self.element.decode(buffer)
 				buffer = entry.payload
 				entries.append(entry)
 				count += 1
-			except BufferExhaustedError as exc:
+			except (BufferExhaustedError, BrokenMessageError) as exc:
 				# Allow for returning 'at least something' if end of
 				# buffer is reached.
 				if count < self.count.minimum:
 					raise BrokenMessageError(exc)
 				
+				buffer = start_buffer
 				break
 			
 		return entries, buffer
@@ -189,15 +225,25 @@ class MessageArrayField(MessageField):
 			Reference another field's value as the argument 'count'.
 		"""
 	
-		def field(values):
+		def field(values, f):
+			f.minimum = values[name]
 			return values[name]
+		field.func_defaults = (field,)
 			
 		return field
 	
 	@staticmethod
 	def all():
 		"""
-			Keep decoding until buffer exhuasted.
+			Decode as much as possible from the buffer.
+			
+			Note that if a full element field cannot be decoded it will 
+			return all entries decoded up to that point, and reset the 
+			buffer to the start of the entry which raised the 
+			BufferExhaustedError. So it is possible to have addtional 
+			fields follow a MessageArrayField and have 
+			count=MessageArrayField.all() as long as the size of the 
+			trailing fields < size of the MessageArrayField element.
 		"""
 		
 		i = [1]
@@ -210,6 +256,9 @@ class MessageArrayField(MessageField):
 		
 	@staticmethod
 	def at_least(minimum):
+		"""
+			Decode at least 'minimum' number of entries.
+		"""
 		
 		i = [1]
 		def at_least(values):
@@ -219,10 +268,14 @@ class MessageArrayField(MessageField):
 		
 		return at_least
 
+
 class Message(object):
+	
+	fields = ()
 	
 	def __init__(self, payload=None, **field_values):
 		
+		self.fields = self.__class__.fields
 		self.payload = payload
 		self.values = field_values
 	
@@ -250,10 +303,12 @@ class Message(object):
 		buffer = packet
 		values = {}
 		for field in cls.fields:
+			print "Decoding {}".format(field.__class__.__name__)
+			print "\t" + " ".join([c.encode("hex") for c in buffer])
 			values[field.name], buffer = field.decode(buffer, values)
 			
 		return cls(buffer, **values)
-	
+
 class Header(Message):
 	
 	fields = (
@@ -370,7 +425,7 @@ class MSAddressEntryIPField(MessageField):
 	def decode(self, buffer, values):
 		
 		if len(buffer) < 4:
-			raise BrokenMessageError("Exhusted buffer")
+			raise BufferExhaustedError
 			
 		field_data = buffer[:4]
 		left_overs = buffer[4:]
