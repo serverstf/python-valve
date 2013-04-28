@@ -313,6 +313,21 @@ class Header(Message):
 				LongField("split", validators=[lambda x: x in [SPLIT, NO_SPLIT]]),
 				)
 
+class Fragment(Message):
+	
+	fields = (
+				LongField("message_id"),
+				ByteField("fragment_count"),
+				ByteField("fragment_id"), # 0-indexed
+				ShortField("mtu"),
+				)
+
+	@property
+	def is_compressed(self):
+		return bool(self["message_id"] & 2**(2*8))
+
+# TODO: FragmentCompressionData
+
 class InfoRequest(Message):
 	
 	fields = (
@@ -395,6 +410,13 @@ class RuleEntry(Message):
 class RulesResponse(Message):
 	
 	fields = (
+				# A2S_RESPONSE misteriously seems to add a FF FF FF FF
+				# long to the beginning of the response which isn't
+				# mentioned on the wiki.
+				#
+				# Behaviour witnessed with TF2 server 94.23.226.200:2045
+				LongField("long"),
+				
 				ByteField("response_type", validators=[lambda x: x == 0x45]),
 				ShortField("rule_count"),
 				MessageArrayField("rules", RuleEntry, MessageArrayField.value_of("rule_count"))

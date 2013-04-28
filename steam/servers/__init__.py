@@ -53,7 +53,7 @@ class BaseServerQuerier(object):
 			data = ready[0][0].recv(1400)
 		except socket.error:
 			raise BadResponseError(socket.error)
-			
+		
 		return data
 		
 class ServerQuerier(BaseServerQuerier):
@@ -64,7 +64,7 @@ class ServerQuerier(BaseServerQuerier):
 					(self.host, self.port))
 	
 	def get_response(self):
-		
+
 		data = BaseServerQuerier.get_response(self)
 		
 		# According to https://developer.valvesoftware.com/wiki/Server_queries
@@ -78,7 +78,24 @@ class ServerQuerier(BaseServerQuerier):
 		
 		response = messages.Header().decode(data)
 		if response["split"] == SPLIT:
-			raise NotImplementedError("Message is fragmented")
+			
+			fragments = {}
+			fragment = messages.Fragment.decode(response.payload)
+			
+			if fragment.is_compressed:
+				raise NotImplementedError("Fragments are compressed")
+			
+			fragments[fragment["fragment_id"]] = fragment
+			while len(fragments) < fragment["fragment_count"]:
+				
+				data = BaseServerQuerier.get_response(self)
+				fragment = messages.Fragment.decode(
+									messages.Header.decode(data).payload)
+				
+				fragments[fragment["fragment_id"]] = fragment
+			
+			return "".join([fragment[1].payload for fragment in 
+						sorted(fragments.items(), key=lambda f: f[0])])
 			
 		return response.payload
 	
