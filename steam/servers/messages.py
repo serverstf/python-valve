@@ -140,8 +140,34 @@ class FloatField(MessageField):
 	fmt = "f"
 
 class MessageArrayField(MessageField):
+	"""
+		Represents a nested message within another message that is
+		repeated a given number of time (often defined within the 
+		same message.)
+	"""
 	
 	def __init__(self, name, element, count):
+		"""
+			element -- the Message subclass that will attempt to be decoded
+			
+			count -- ideally a callable that returns the number of
+				'elements' to attempt to decode; count must also present
+				a 'minimum' attribute which is minimum number of elements
+				that must be decoded or else raise BrokenMessageError
+				
+				If count isn't callable (e.g. a number) it will be 
+				wrapped in a function with the minimum attribute set
+				equal to the given 'count' value
+				
+				Helper static methods all(), value_of() and at_least()
+				are provided which are intended to be used as the
+				'count' argument, e.g.
+				
+				MessageArrayField("", SubMessage, MessageArrayField.all())
+				
+				... will decode all SubMessages within the buffer
+		"""
+		
 		MessageField.__init__(self, name)
 		
 		# Coerces the count argument to be a callable. For example, 
@@ -258,7 +284,38 @@ class MessageArrayField(MessageField):
 		
 		return at_least
 
-
+class MessageDictField(MessageArrayField):
+	"""
+		Decodes a series of key-value pairs from a message. Functionally
+		identical to MessageArrayField except the results are returned as
+		a dictionary instead of a list.
+	"""
+	
+	def __init__(self, name, key_field, value_field, count):
+		"""
+			key_field and value_field are the respective components
+			of the name-value pair that are to be decoded. The fields 
+			should have unique name strings. Tt is assumed that the 
+			key-field comes first, followed by the value.
+			
+			count is the same as MessageArrayField.
+		"""
+		
+		element = type("KeyValueField", (Message,), {"fields": (key_field, value_field)})
+		self.key_field = key_field
+		self.value_field = value_field
+		
+		MessageArrayField.__init__(self, name, element, count)
+	
+	def decode(self, buffer, values):
+		entries, buffer = MessageArrayField.decode(self, buffer, values)
+		
+		entries_dict = {}
+		for entry in entries:
+			entries_dict[entry[self.key_field.name]] = entry[self.value_field.name]
+		
+		return entries_dict, buffer
+		
 class Message(object):
 	
 	fields = ()
@@ -409,7 +466,7 @@ class RulesResponse(Message):
 				
 				ByteField("response_type", validators=[lambda x: x == 0x45]),
 				ShortField("rule_count"),
-				MessageArrayField("rules", RuleEntry, MessageArrayField.value_of("rule_count"))
+				MessageDictField("rules", StringField("key"), StringField("value"), MessageArrayField.value_of("rule_count")),
 				)
 
 class PingRequest(Message):
