@@ -141,33 +141,23 @@ class FloatField(MessageField):
 
 class MessageArrayField(MessageField):
 	
-	def _force_callable_count(func):
-		"""
-			Coerces the count argument to be a callable. For example, 
-			in most cases count would be a Message.value_of(), however 
-			if an integer is provided it will be wrapped in a lambda.
-		"""
-	
-		def _force_callable_count(self, name, element, count):
-			
-			if not hasattr(count, "__call__"):
-				
-				def _(values):
-					return count
-				_.minimum = count
-				
-				return func(self, name, element, _)
-			
-			return func(self, name, element, count)
-
-		return _force_callable_count
-	
-	@_force_callable_count
 	def __init__(self, name, element, count):
 		MessageField.__init__(self, name)
-
-		self.element = element
+		
+		# Coerces the count argument to be a callable. For example, 
+		# in most cases count would be a Message.value_of(), however 
+		# if an integer is provided it will be wrapped in a lambda.
+		
 		self.count = count
+		if not hasattr(count, "__call__"):
+				
+			def const_count(values):
+				return count
+				
+			const_count.minimum = count
+			self.count = const_count
+		
+		self.element = element
 	
 	def decode(self, buffer, values):
 		
