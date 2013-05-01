@@ -447,13 +447,6 @@ class RulesRequest(Message):
 				LongField("challenge")
 				)
 
-class RuleEntry(Message):
-	
-	fields = (
-				StringField("name"),
-				StringField("value"),
-				)
-
 class RulesResponse(Message):
 	
 	fields = (
