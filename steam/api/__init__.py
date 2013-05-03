@@ -19,6 +19,7 @@ import re
 import json
 import xml.etree.ElementTree
 import keyword
+import warnings
 
 API_LIST_REQUEST = ("GET", "ISteamWebAPIUtil/GetSupportedAPIList/v0001/", {})
 
@@ -179,6 +180,11 @@ class Interface(object):
 		
 		for method_config in config["methods"]:
 			method = InterfaceMethod(self, **method_config)
+			if method.name in self.methods:
+				warnings.warn("Multiple versions of {}; using version {}".format(method, max(method.version, self.methods[method.name].version)))
+				if method.version < self.methods[method.name].version:
+					continue
+			
 			for name in [method.name] + _pythonise_name(method.name):
 				self.methods[name] = method
 	
