@@ -181,7 +181,10 @@ class Interface(object):
 		for method_config in config["methods"]:
 			method = InterfaceMethod(self, **method_config)
 			if method.name in self.methods:
-				warnings.warn("Multiple versions of {}; using version {}".format(method, max(method.version, self.methods[method.name].version)))
+				warnings.warn("Multiple versions of {}; using version {}".format(
+								method,
+								max(method.version, self.methods[method.name].version)),
+									DeprecationWarning)
 				if method.version < self.methods[method.name].version:
 					continue
 			
@@ -282,6 +285,11 @@ class SteamAPI(object):
 			that they are functions bound to a class instance. Rather
 			they are callable attribute that happen to hold a reference
 			to the instance.
+			
+			Note: if multiple versions of a single interface method exists,
+			such as in the case of ISteamUser.GetPlayerSummaries, only 
+			the most 'current' one will be available. DeprecationWarnings
+			are raised when conflicting versions are found.
 		"""
 		
 		self.key = key
