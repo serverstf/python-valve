@@ -26,7 +26,6 @@ REGION_REST = 0xFF
 MASTER_SERVER_ADDR = ("hl2master.steampowered.com", 27011)
 
 class BrokenMessageError(Exception): pass
-class BadResponseError(Exception): pass
 class NoResponseError(Exception): pass
 
 from steam.servers import messages
@@ -51,8 +50,8 @@ class BaseServerQuerier(object):
 		
 		try:
 			data = ready[0][0].recv(1400)
-		except socket.error:
-			raise BadResponseError(socket.error)
+		except socket.error as exc:
+			raise NoResponseError(exc)
 		
 		return data
 		
