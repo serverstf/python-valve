@@ -128,7 +128,7 @@ class StringField(MessageField):
 		field_data = buffer[:field_size-1]
 		left_overs = buffer[field_size:]
 
-		return field_data.decode("utf8"), left_overs
+		return field_data.decode("utf8", "ignore"), left_overs
 		
 class ShortField(MessageField):
 	fmt = "h"
