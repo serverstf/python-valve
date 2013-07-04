@@ -7,9 +7,12 @@
 import socket
 import struct
 import select
+import errno
+import time
 
 class IncompleteMessageError(Exception): pass
 class AuthenticationError(Exception): pass
+class NoResponseError(Exception): pass
 
 class Message(object):
 	
@@ -77,10 +80,11 @@ class Message(object):
 		
 class RCON(object):
 	
-	def __init__(self, address):
+	def __init__(self, address, timeout=10.0):
 		
 		self.host = address[0]
 		self.port = address[1]
+		self.timeout = timeout
 		
 		self._next_id = 1
 		self._read_buffer = ""
@@ -89,20 +93,28 @@ class RCON(object):
 		
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.socket.connect((self.host, self.port))
+		self.socket.settimeout(0.0)
 		
 		self.is_authenticated = False
 	
 	def disconnect(self):
 		self.socket.close()
+		self.is_authenticated = False
 	
 	def request(self, type, body=u""):
+		"""
+			Send a message to server.
+			
+			If type is SEVERDATA_EXECCOMAND
+			an addtional SERVERDATA_RESPONSE_VALUE is sent in order
+			to facilitate correct processing of multi-packet responses.
+		"""
 		
 		request = Message(self._next_id, type, body)
-		#print ">>", request
 		self._active_requests[request.id] = request
 		self._next_id += 1
 		
-		self.socket.send(request.encode())
+		self.socket.sendall(request.encode())
 		# Must send a SERVERDATA_RESPONSE_VALUE after EXECCOMMAND
 		# in order to handle multi-packet responses as per
 		# https://developer.valvesoftware.com/wiki/RCON#Multiple-packet_Responses
@@ -112,16 +124,23 @@ class RCON(object):
 		return request
 	
 	def process(self):
+		"""
+			Reads all avilable data from socket and attempts to process
+			a response. Responses are automatically attached to their
+			corresponding request.
+		"""
 		
-		ready = select.select([self.socket], [], [], 2.0)
-		if ready:
+		try:
 			self._read_buffer += self.socket.recv(4096)
+		except socket.error as exc:
+			if exc.errno not in [errno.EAGAIN,
+									errno.EWOULDBLOCK,
+									errno.WSAEWOULDBLOCK]:
+				raise
 		
 		response, self._read_buffer = Message.decode(self._read_buffer)
 		
-		#print "<<", response
-		# Check if terminating RESPONSE_VALUE with body
-		# 0x0000 0001 0000 0000
+		# Check if terminating RESPONSE_VALUE with body 00 01 00 00
 		if response.type == Message.SERVERDATA_RESPONSE_VALUE and \
 			response.body.encode("ascii") == "\x00\x01\x00\x00":
 				
@@ -130,7 +149,9 @@ class RCON(object):
 										"".join([r.body for r in self._response])
 									)
 			self._active_requests[response.id].response = response
+			
 			self._response = []
+			self._active_requests[response.id]
 			
 		elif response.type == Message.SERVERDATA_RESPONSE_VALUE:
 			self._response.append(response)
@@ -141,37 +162,58 @@ class RCON(object):
 			# Clear empty SERVERDATA_RESPONSE_VALUE sent before
 			# SERVERDATA_AUTH_RESPONSE
 			self._response = []
+			self._active_requests[response.id]
 	
-	def response_to(self, request, timeout=10.0):
+	def response_to(self, request, timeout=None):
 		"""
 			Returns a context manager that waits up to a given time for
 			a response to a specific request. Assumes the request has
 			actually been sent to an RCON server.
+			
+			If the timeout period is exceeded, NoResponseError is raised.
 		"""
 		
 		class ResponseContextManager(object):
 			
-			def __init__(self, rcon, request):
+			def __init__(self, rcon, request, timeout):
 				
 				self.rcon = rcon
 				self.request = request
+				self.timeout = timeout
 			
 			def __enter__(self):
 				
+				time_left = self.timeout
 				while self.request.response is None:
+					time_start = time.time()
+					
 					try:
 						self.rcon.process()
 					except IncompleteMessageError:
 						pass
+						
+					time_left -= time.time() - time_start
+					if time_left < 0:
+						raise NoResponseError
 					
 				return self.request.response
 			
 			def __exit__(self, type, value, tb):
 				pass
-			
-		return ResponseContextManager(self, request)
+		
+		if timeout is None:
+			timeout = self.timeout
+		
+		return ResponseContextManager(self, request, timeout)
 		
 	def authenticate(self, password):
+		"""
+			Authenticates with the server using the given password.
+			
+			Raises AuthenticationError if password is incorrect. Note
+			that multiple attempts with the wrong password will result
+			in the server automatically banning 'this' IP.
+		"""
 		
 		request = self.request(Message.SERVERDATA_AUTH, unicode(password))
 		with self.response_to(request) as response:
@@ -181,6 +223,20 @@ class RCON(object):
 			self.is_authenticated = True
 		
 	def execute(self, command, block=True):
+		"""
+			Executes a SRCDS console command.
+			
+			Returns the Message object that makes up the request sent
+			to the server. If block is True, the response attribute
+			will be set, unless a NoResposneError was raised whilst
+			waiting for a response.
+			
+			If block is False, calls must be made to process() until
+			a response is recieved. E.g. use response_to().
+			
+			Requires that the client is authenticated, otherwise an
+			AuthenticationError is raised.
+		"""
 		
 		if not self.is_authenticated:
 			raise AuthenticationError
