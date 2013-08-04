@@ -264,3 +264,65 @@ def load(fp, encoding=None, coerce_=UNQUOTED):
 		Same as loads but takes a file-like object as the source.
 	"""
 	return loads(fp.read(), encoding, coerce_)
+
+def dumps(obj, encoding=None, indent=u"    ", object_encoders={}):
+	"""
+		Serialises a series of nested dictionaries to the VDF/KeyValues
+		format and returns it as a string.
+		
+		If 'encoding' isn't specified a Unicode string will be returned,
+		else an ecoded bytestring will be.
+		
+		'indent' is the string to be used to indent nested blocks. The
+		string given should be Unicode and represent one level of
+		indentation. Four spaces by default.
+		
+		'object_encoders' maps a series of types onto serialisers, which
+		convert objects to their VDF equivalent. If no encoder is
+		specified for a type it'll fall back to using __unicode__.
+		Note that currently this likely causes None to be encoded
+		incorrectly. Also, floats which include the exponent in their
+		textual representaiton may also be 'wrong.'
+	"""
+	object_codecs = {
+		float: lambda v: unicode(repr(v / 1.0)),
+	}
+	object_codecs.update(object_encoders)
+	
+	# I don't know how TYPE_NONE (None) are meant to be encoded so we
+	# just use unicode() until it's known.
+	
+	lines = []
+	def recurse_obj(obj, indent_level=0):
+		
+		ind = indent * indent_level
+		
+		for key, value in obj.iteritems():
+			
+			if isinstance(value, dict):
+				lines.append(u"{}\"{}\"".format(ind, key))
+				lines.append(u"{}{{".format(ind))
+				recurse_obj(value, indent_level + 1)
+				lines.append(u"{}}}".format(ind))
+			
+			else:
+				lines.append(u"{}\"{}\"{}\"{}\"".format(
+							ind,
+							key,
+							indent,
+							object_codecs.get(type(value), unicode)(value),
+							))
+			
+	recurse_obj(obj)
+	
+	if encoding is not None:
+		return u"\n".join(lines).encode(encoding)
+	else:
+		return u"\n".join(lines)
+		
+def dump(obj, fp, encoding, indent=u"    ", object_encoders={}):
+	"""
+		Same as dumps but takes a file-like object 'fp' which will be
+		written to.
+	"""
+	return fp.write(dumps(obj), encoding, indent, object_encoders)
