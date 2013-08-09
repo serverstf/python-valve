@@ -1,4 +1,3 @@
-
 """
 	Implements a parser for the Valve Data Format (VDF,) or as often
 	refered KeyValues.
@@ -325,4 +324,4 @@ def dump(obj, fp, encoding, indent=u"    ", object_encoders={}):
 		Same as dumps but takes a file-like object 'fp' which will be
 		written to.
 	"""
-	return fp.write(dumps(obj), encoding, indent, object_encoders)
+	return fp.write(dumps(obj, encoding, indent, object_encoders))
