@@ -65,11 +65,16 @@ type_url_path_map = {
     TYPE_CLAN: ["groups", "gid"],
     }
 
+# These shall be left as homage to Great Line-feed Drought of 2013
 textual_id_regex = re.compile(r"^STEAM_(?P<X>\d+):(?P<Y>\d+):(?P<Z>\d+)$")
 community32_regex = re.compile(r".*/(?P<path>{paths})/\[(?P<type>[{type_chars}]):1:(?P<W>\d+)\]$".format(paths="|".join("|".join(paths) for paths in type_url_path_map.values()), type_chars="".join(c for c in type_letter_map.values())))
 community64_regex = re.compile(r".*/(?P<path>{paths})/(?P<W>\d+)$".format(paths="|".join("|".join(paths) for paths in type_url_path_map.values())))
 
-class SteamIDError(Exception): pass
+
+class SteamIDError(Exception):
+    pass
+
+
 class SteamID(object):
 
     base_community_url = "http://steamcommunity.com/"
@@ -89,33 +94,27 @@ class SteamID(object):
         """
 
         url = urlparse.urlparse(id)
-
         match = community32_regex.match(url.path)
         if match:
-            if match.group("path") not in type_url_path_map[letter_type_map[match.group("type")]]:
-                warnings.warn("Community URL ({}) path doesn't match type character".format(url.path))
-
+            if (match.group("path") not in
+                    type_url_path_map[letter_type_map[match.group("type")]]):
+                warnings.warn("Community URL ({}) path doesn't "
+                              "match type character".format(url.path))
             w = int(match.group("W"))
             y = w & 1
             z = (w - y) / 2
-
             return cls(z, y, letter_type_map[match.group("type")], universe)
-
         match = community64_regex.match(url.path)
         if match:
-
             w = int(match.group("W"))
             y = w & 1
-
             if match.group("path") in type_url_path_map[TYPE_INDIVIDUAL]:
                 z = (w - y - 0x0110000100000000) / 2
                 type = TYPE_INDIVIDUAL
             elif match.group("path") in type_url_path_map[TYPE_CLAN]:
                 z = (w - y - 0x0170000000000000) / 2
                 type = TYPE_CLAN
-
             return cls(z, y, type, universe)
-
         raise SteamIDError("Invalid Steam community URL ({})".format(url))
 
     @classmethod
@@ -137,39 +136,34 @@ class SteamID(object):
 
         if id == "STEAM_ID_PENDING":
             return cls(0, 0, TYPE_PENDING, 0)
-
         if id == "UNKNOWN":
             return cls(0, 0, TYPE_INVALID, 0)
-
         match = textual_id_regex.match(id)
         if not match:
-            raise SteamIDError("ID '{}' doesn't match format {}".format(id, textual_id_regex.pattern))
-
+            raise SteamIDError("ID '{}' doesn't match format {}".format(
+                id, textual_id_regex.pattern))
         return cls(
             int(match.group("Z")),
             int(match.group("Y")),
             type,
             int(match.group("X"))
-            )
+        )
 
     def __init__(self, account_number, instance, type, universe):
-
         if universe not in _universes:
             raise SteamIDError("Invalid universe {}".format(universe))
-
         if type not in _types:
             raise SteamIDError("Invalid type {}".format(type))
-
         if 0 < account_number > (2**32) - 1:
-            raise SteamIDError("Account number ({}) out of range".format(account_number))
-
+            raise SteamIDError(
+                "Account number ({}) out of range".format(account_number))
         if instance not in [1, 0]:
-            raise SteamIDError("Expected instance to be 1 or 0, got {}".format(instance))
-
-        self.account_number = account_number # Z
-        self.instance = instance # Y
+            raise SteamIDError(
+                "Expected instance to be 1 or 0, got {}".format(instance))
+        self.account_number = account_number  # Z
+        self.instance = instance  # Y
         self.type = type
-        self.universe = universe # X
+        self.universe = universe  # X
 
     @property
     def type_name(self):
@@ -177,7 +171,9 @@ class SteamID(object):
             Convenience method which maps the account type to a more
             meaningful name.
         """
-        return {v: k for k, v in globals().iteritems() if k.startswith("TYPE_")}.get(self.type, self.type)
+
+        return {v: k for k, v in globals().iteritems()
+                if k.startswith("TYPE_")}.get(self.type, self.type)
 
     def __str__(self):
         """
@@ -192,8 +188,8 @@ class SteamID(object):
             return "STEAM_ID_PENDING"
         elif self.type == TYPE_INVALID:
             return "UNKNOWN"
-
-        return "STEAM_{}:{}:{}".format(self.universe, self.instance, self.account_number)
+        return "STEAM_{}:{}:{}".format(self.universe,
+                                       self.instance, self.account_number)
 
     def __unicode__(self):
         return unicode(str(self))
@@ -209,11 +205,13 @@ class SteamID(object):
         """
 
         if self.type == TYPE_INDIVIDUAL:
-            return (self.account_number * 2) + 0x0110000100000000 + self.instance
+            return ((self.account_number * 2) +
+                    0x0110000100000000 + self.instance)
         elif self.type == TYPE_CLAN:
-            return (self.account_number * 2) + 0x0170000000000000 + self.instance
-
-        raise SteamIDError("Cannot create 64-bit identifier for SteamID with type {}".format(self.type_name))
+            return ((self.account_number * 2) +
+                    0x0170000000000000 + self.instance)
+        raise SteamIDError("Cannot create 64-bit identifier for "
+                           "SteamID with type {}".format(self.type_name))
 
     def __eq__(self, other):
         try:
@@ -235,11 +233,12 @@ class SteamID(object):
 
         try:
             return "[{}:1:{}]".format(
-                                    type_letter_map[self.type],
-                                    (self.account_number * 2) + self.instance
-                                    )
+                type_letter_map[self.type],
+                (self.account_number * 2) + self.instance
+            )
         except KeyError:
-            raise SteamIDError("Cannot create 32-bit indentifier for SteamID with type {}".format(self.type_name))
+            raise SteamIDError("Cannot create 32-bit indentifier for "
+                               "SteamID with type {}".format(self.type_name))
 
     def as_64(self):
         """
@@ -247,6 +246,7 @@ class SteamID(object):
             __int__ but returns a string instead. Because of this it
             only available for TYPE_INDIVIDUAL and TYPE_CLAN.
         """
+
         return str(int(self))
 
     def community_url(self, id64=True):
@@ -261,8 +261,10 @@ class SteamID(object):
         path_func = self.as_64 if id64 else self.as_32
         try:
             return urlparse.urljoin(
-                        self.__class__.base_community_url,
-                        "/".join((type_url_path_map[self.type][0], path_func()))
-                        )
+                self.__class__.base_community_url,
+                "/".join((type_url_path_map[self.type][0], path_func()))
+            )
         except KeyError:
-            raise SteamIDError("Cannot generate community URL for type {}".format(self.type_name))
+            raise SteamIDError(
+                "Cannot generate community URL for type {}".format(
+                    self.type_name))

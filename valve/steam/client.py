@@ -35,6 +35,7 @@ SCREENSHOTS = "screenshots"
 SERVERS = "servers"
 SETTINGS = "settings"
 
+
 class SteamClient(object):
     """
         Provides a means to interact with the current user's Steam
@@ -58,22 +59,17 @@ class SteamClient(object):
         self.registry_access_flag = kwargs.get("registry_access_flag")
 
     def _get_registry_key(self, *args):
-
         args = list(itertools.chain(*[str(arg).split("\\") for arg in args]))
         sub_key = "Software\\Valve\Steam\\" + "\\".join(args[:-1])
-
-        if self.registry_access_flag  is not None:
+        if self.registry_access_flag is not None:
             access_flag = self.registry_access_flag | winreg.KEY_QUERY_VALUE
         else:
             access_flag = winreg.KEY_QUERY_VALUE
-
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, sub_key,
-                0, access_flag) as key:
-
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                            sub_key, 0, access_flag) as key:
             return winreg.QueryValueEx(key, args[-1])[0]
 
     def _startfile(self, *args):
-
         args = list(itertools.chain(*[str(arg).split("/") for arg in args]))
         os.startfile("steam://" + "/".join(args))
 
@@ -150,14 +146,11 @@ class SteamClient(object):
         self._startfile("checksysreqs", appid)
 
     def connect(self, host, port=None, password=None):
-
         args = ["connect", host]
         if port is not None:
             args[0] = args[0] + ":" + str(port)
-
         if password is not None:
             args.append(password)
-
         self._startfile(*args)
 
     def defragment(self, appid):
@@ -243,5 +236,3 @@ class SteamClient(object):
 
     # TODO: runsafe, rungameid, subscriptioninstall,
     # support, takesurvey, url
-
-

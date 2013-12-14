@@ -12,6 +12,8 @@ import socket
 import select
 import time
 
+from steam.servers import messages
+
 NO_SPLIT = -1
 SPLIT = -2
 
@@ -27,15 +29,18 @@ REGION_REST = 0xFF
 
 MASTER_SERVER_ADDR = ("hl2master.steampowered.com", 27011)
 
-class BrokenMessageError(Exception): pass
-class NoResponseError(Exception): pass
 
-from steam.servers import messages
+class BrokenMessageError(Exception):
+    pass
+
+
+class NoResponseError(Exception):
+    pass
+
 
 class BaseServerQuerier(object):
 
     def __init__(self, address, timeout=5.0):
-
         self.host = address[0]
         self.port = address[1]
         self.timeout = timeout
@@ -45,24 +50,23 @@ class BaseServerQuerier(object):
         self.socket.sendto(request.encode(), (self.host, self.port))
 
     def get_response(self):
-
         ready = select.select([self.socket], [], [], self.timeout)
         if not ready[0]:
             raise NoResponseError("Timed out waiting for response")
-
         try:
             data = ready[0][0].recv(1400)
         except socket.error as exc:
             raise NoResponseError(exc)
-
         return data
+
 
 class ServerQuerier(BaseServerQuerier):
 
     def request(self, request):
         self.socket.sendto(
-                    messages.Header(split=NO_SPLIT).encode() + request.encode(),
-                    (self.host, self.port))
+            messages.Header(split=NO_SPLIT).encode() + request.encode(),
+            (self.host, self.port)
+        )
 
     def get_response(self):
 
@@ -79,25 +83,18 @@ class ServerQuerier(BaseServerQuerier):
 
         response = messages.Header().decode(data)
         if response["split"] == SPLIT:
-
             fragments = {}
             fragment = messages.Fragment.decode(response.payload)
-
             if fragment.is_compressed:
                 raise NotImplementedError("Fragments are compressed")
-
             fragments[fragment["fragment_id"]] = fragment
             while len(fragments) < fragment["fragment_count"]:
-
                 data = BaseServerQuerier.get_response(self)
                 fragment = messages.Fragment.decode(
-                                    messages.Header.decode(data).payload)
-
+                    messages.Header.decode(data).payload)
                 fragments[fragment["fragment_id"]] = fragment
-
-            return "".join([fragment[1].payload for fragment in
-                        sorted(fragments.items(), key=lambda f: f[0])])
-
+            return "".join([frag[1].payload for frag in
+                            sorted(fragments.items(), key=lambda f: f[0])])
         return response.payload
 
     def ping(self):
@@ -147,7 +144,6 @@ class ServerQuerier(BaseServerQuerier):
         # fine for all servers
         self.request(messages.PlayersRequest(challenge=-1))
         challenge = messages.GetChallengeResponse.decode(self.get_response())
-
         self.request(messages.PlayersRequest(challenge=challenge["challenge"]))
         return messages.PlayersResponse.decode(self.get_response())
 
@@ -164,9 +160,9 @@ class ServerQuerier(BaseServerQuerier):
 
         self.request(messages.RulesRequest(challenge=-1))
         challenge = messages.GetChallengeResponse.decode(self.get_response())
-
         self.request(messages.RulesRequest(challenge=challenge["challenge"]))
         return messages.RulesResponse.decode(self.get_response())
+
 
 class MasterServerQuerier(BaseServerQuerier):
 
@@ -174,22 +170,16 @@ class MasterServerQuerier(BaseServerQuerier):
         BaseServerQuerier.__init__(self, address, timeout)
 
     def get_region(self, region_code, filter="", last_addr="0.0.0.0:0"):
-
         while True:
-
-            self.request(messages.MasterServerRequest(
-                                            region=region_code,
-                                            address=last_addr,
-                                            filter=filter
-                                            ))
-            response = messages.MasterServerResponse.decode(self.get_response())
-
+            self.request(messages.MasterServerRequest(region=region_code,
+                                                      address=last_addr,
+                                                      filter=filter))
+            response = messages.MasterServerResponse.decode(
+                self.get_response())
             for address in response["addresses"]:
                 last_addr = "{}:{}".format(address["host"], address["port"])
                 if address.is_null:
                     break
-
                 yield address["host"], address["port"]
-
             if last_addr == "0.0.0.0:0":
                 break

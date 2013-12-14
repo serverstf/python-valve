@@ -36,6 +36,7 @@ appid_name_map = {
     "205790": "dota2_test",
 }
 
+
 def _pythonise_name(name):
     """
         Attempts to convert Steam API interfance and method names to
@@ -45,16 +46,14 @@ def _pythonise_name(name):
 
     # See http://stackoverflow.com/a/1176023/122531 for de-camelcasing
     names = []
-
     s1 = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", name)
     s2 = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
     s3 = re.sub(r"^i_", r"", s2).lower()
     s4 = re.sub(r"^steam_", r"", s3)
     names.append(s4)
-
     try:
-        s5 = re.sub(r"(\d+)$", appid_name_map[re.findall(r"_(\d+)$", s4)[0]], s4)
-
+        s5 = re.sub(r"(\d+)$",
+                    appid_name_map[re.findall(r"_(\d+)$", s4)[0]], s4)
         # Special case for Portal 2 names, which end up being converted to
         # the likes of portal2_leaderboards_portal2_beta
         # Leading 'portal2_' will be stripped if 'portal2' occurs anywhere else
@@ -64,50 +63,51 @@ def _pythonise_name(name):
             names.append(s6)
         else:
             names.append(s5)
-
     except (KeyError, IndexError):
         pass
-
     return names
 
-class SteamError(Exception): pass
+
+class SteamError(Exception):
+    pass
+
 
 class Parameter(object):
 
     def __init__(self, **config):
-
         self.name = config["name"]
         self.is_optional = config["optional"]
         self.description = config["description"]
         self.type = config["type"]
-
         self.keyword = re.sub(r"\[\d+\]$", r"", self.name).lower()
         if self.keyword in keyword.kwlist:
             self.keyword += "_"
 
     def validate(self, value):
-
         if self.type == "uint32":
             value = int(value)
             if not 0 <= value < 2**32:
-                raise ValueError("Invalid value {val} for parameter '{name}' with type {type}".format(name=self.name, type=self.type, val=value))
-
+                raise ValueError(
+                    "Invalid value {val} for parameter '{name}' with "
+                    "type {type}".format(name=self.name,
+                                         type=self.type, val=value))
             return str(value)
-
         elif self.type == "int32":
             value = int(value)
             if -2**31 < value < 2**31:
-                raise ValueError("Invalid value {val} for parameter '{name}' with type {type}".format(name=self.name, type=self.type, val=value))
-
+                raise ValueError(
+                    "Invalid value {val} for parameter '{name}' with "
+                    "type {type}".format(name=self.name,
+                                         type=self.type, val=value))
             return str(value)
-
         elif self.type == "uint64":
             value = int(value)
             if not 0 <= value < 2**64:
-                raise ValueError("Invalid value {val} for parameter '{name}' with type {type}".format(name=self.name, type=self.type, val=value))
-
+                raise ValueError(
+                    "Invalid value {val} for parameter '{name}' with "
+                    "type {type}".format(name=self.name,
+                                         type=self.type, val=value))
             return str(value)
-
         elif self.type == "bool":
             return int(bool(value))
 
@@ -116,35 +116,29 @@ class Parameter(object):
 
         elif self.type == "rawbinary":
             return str(value)
-
         else:
-            raise NotImplementedError("No conversion avilable for type {}".format(self.type))
+            raise NotImplementedError(
+                "No conversion avilable for type {}".format(self.type))
+
 
 class InterfaceMethod(object):
 
     def __init__(self, interface, **config):
-
         self.interface = interface
-
         self.name = config["name"]
         self.version = config["version"]
         self.http_method = config["httpmethod"]
         self.parameters = []
-
         for param_config in config["parameters"]:
             if param_config["name"] != "key":
                 self.parameters.append(Parameter(**param_config))
 
-        #self.__doc__ = "\n".join([
-                            #"Implementes {}/{}".format(self.interface.name, self.name),
-                            #"",
-                            #"Parameters:",
-                            #] + [
-                            #"  '{}' -- {}".format(p.name, p.description) for p in self.parameters
-                            #])
-
     def __repr__(self):
-        return "{cls}({iname}.{name})".format(cls=self.__class__.__name__, iname=self.interface.name, name=self.name)
+        return "{cls}({iname}.{name})".format(
+            cls=self.__class__.__name__,
+            iname=self.interface.name,
+            name=self.name
+        )
 
     def __call__(self, **params):
         """
@@ -153,60 +147,63 @@ class InterfaceMethod(object):
         """
 
         path = "/{iname}/{mname}/v{ver:04d}/".format(
-                iname=self.interface.name,
-                mname=self.name,
-                ver=self.version
-                )
-
+            iname=self.interface.name,
+            mname=self.name,
+            ver=self.version
+        )
         validated_params = []
         for mparam in self.parameters:
             try:
                 validated_params.append((
-                        mparam.name,
-                        mparam.validate(params[mparam.keyword])
-                        ))
+                    mparam.name,
+                    mparam.validate(params[mparam.keyword])
+                ))
             except KeyError:
                 if not mparam.is_optional:
-                    raise ValueError("Required parameter '{pname}' for {meth} not given".format(pname=mparam.keyword, meth=self))
+                    raise ValueError(
+                        "Required parameter '{pname}' for {meth} not "
+                        "given".format(pname=mparam.keyword, meth=self))
+        return self.interface.api.request(self.http_method,
+                                          path, dict(validated_params))
 
-        return self.interface.api.request(self.http_method, path, dict(validated_params))
 
 class Interface(object):
 
     def __init__(self, api, **config):
-
         self.api = api
-
         self.name = config["name"]
         self.methods = {}
-
         for method_config in config["methods"]:
             method = InterfaceMethod(self, **method_config)
             if method.name in self.methods:
-                warnings.warn("Multiple versions of {}; using version {}".format(
-                                method,
-                                max(method.version, self.methods[method.name].version)),
-                                    DeprecationWarning)
+                warnings.warn(
+                    "Multiple versions of {}; using v{}".format(
+                        method, max(method.version,
+                                    self.methods[method.name].version)),
+                    DeprecationWarning
+                )
                 if method.version < self.methods[method.name].version:
                     continue
-
             for name in [method.name] + _pythonise_name(method.name):
                 self.methods[name] = method
 
     def __repr__(self):
-        return "{cls}({name})".format(cls=self.__class__.__name__, name=self.name)
+        return "{cls}({name})".format(cls=self.__class__.__name__,
+                                      name=self.name)
 
     def __getattr__(self, attr):
-
         try:
             return self.methods[attr]
         except KeyError:
-            raise AttributeError("{name} interface has no attribute or method called {attr}".format(name=self.name, attr=attr))
+            raise AttributeError(
+                "{name} interface has no attribute or method called "
+                "{attr}".format(name=self.name, attr=attr))
+
 
 class SteamAPI(object):
 
     def __init__(self, key=None, format="json",
-                    url="http://api.steampowered.com/"):
+                 url="http://api.steampowered.com/"):
         """
             Returns a Steam object used for accessing the Steam web API.
             https://developer.valvesoftware.com/wiki/Steam_Web_API
@@ -299,7 +296,6 @@ class SteamAPI(object):
         self.format = "json"
         self.api_spec = self.request(*API_LIST_REQUEST)
         self.format = format
-
         self.interfaces = {}
         for interface_config in self.api_spec["apilist"]["interfaces"]:
             interface = Interface(self, **interface_config)
@@ -311,7 +307,10 @@ class SteamAPI(object):
         try:
             return self.interfaces[attr]
         except KeyError:
-            raise AttributeError("{cls} object has no attribute or interface called {attr}".format(cls=self.__class__.__name__, attr=attr))
+            raise AttributeError(
+                "{cls} object has no attribute or interface called "
+                "{attr}".format(cls=self.__class__.__name__,
+                                attr=attr))
 
     def request(self, method, path, data):
         """
@@ -324,27 +323,22 @@ class SteamAPI(object):
         """
 
         if self.format not in ["json", "xml", "vdf"]:
-            raise SteamError("Invalid requested format '{}'".format(self.format))
-
+            raise SteamError(
+                "Invalid requested format '{}'".format(self.format))
         data.update(format=self.format)
         if self.key:
             data.update(key=self.key)
-
         if method.upper() == "POST":
-            request = urllib2.Request(
-                        urlparse.urljoin(self.url, path),
-                        urllib.urlencode(data)
-                        )
+            request = urllib2.Request(urlparse.urljoin(self.url, path),
+                                      urllib.urlencode(data))
         elif method.upper() == "GET":
             request = urllib2.Request("{}?{}".format(
-                                        urlparse.urljoin(self.url, path),
-                                        urllib.urlencode(data)))
-
+                                      urlparse.urljoin(self.url, path),
+                                      urllib.urlencode(data)))
         try:
             response = urllib2.urlopen(request)
         except urllib2.URLError as exc:
             raise SteamError(exc)
-
         if self.format == "json":
             return json.load(response)
         elif self.format == "xml":

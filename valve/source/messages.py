@@ -5,38 +5,37 @@ import struct
 
 from steam.servers import BrokenMessageError, SPLIT, NO_SPLIT
 
+
 class BufferExhaustedError(BrokenMessageError):
 
     def __init__(self):
-        BrokenMessageError.__init__(self, "Buffer has been exhausted; incomplete message")
+        BrokenMessageError.__init__(
+            self, "Buffer has been exhausted; incomplete message")
+
 
 def use_default(func):
-
     def use_default(self, value=None):
-
         if value is None:
             return func(self, self.default_value)
-
         return func(self, value)
-
     return use_default
 
-def needs_buffer(func):
 
+def needs_buffer(func):
     def needs_buffer(self, buffer, values):
         if len(buffer) == 0:
             raise BufferExhaustedError
-
         return func(self, buffer, values)
-
     return needs_buffer
+
 
 class MessageField(object):
 
     fmt = None
     validators = []
 
-    def __init__(self, name, optional=False, default_value=None, validators=[]):
+    def __init__(self, name, optional=False,
+                 default_value=None, validators=[]):
         """
             name -- used when decoding messages to set the key in the
                 returned dictionary
@@ -56,7 +55,6 @@ class MessageField(object):
                 self.format = "<" + self.__class__.fmt
             else:
                 self.format = self.__class__.fmt
-
         self.name = name
         self.optional = optional
         self._value = default_value
@@ -67,15 +65,15 @@ class MessageField(object):
         if self.optional:
             if self._value is not None:
                 return self._value
-
-        raise ValueError("Field '{fname}' is not optional".format(fname=self.name))
+        raise ValueError(
+            "Field '{fname}' is not optional".format(fname=self.name))
 
     def validate(self, value):
-
         for validator in self.validators:
             if not validator(value):
-                raise BrokenMessageError("Invalid value ({}) for field '{}'".format(value, self.name))
-
+                raise BrokenMessageError(
+                    "Invalid value ({}) for field '{}'".format(
+                        value, self.name))
         return value
 
     @use_default
@@ -104,17 +102,18 @@ class MessageField(object):
         field_size = struct.calcsize(self.format)
         if len(buffer) < field_size:
             raise BufferExhaustedError
-
         field_data = buffer[:field_size]
         left_overs = buffer[field_size:]
-
         try:
-            return self.validate(struct.unpack(self.format, field_data)[0]), left_overs
+            return (self.validate(
+                struct.unpack(self.format, field_data)[0]), left_overs)
         except struct.error as exc:
             raise BrokenMessageError(exc)
 
+
 class ByteField(MessageField):
     fmt = "B"
+
 
 class StringField(MessageField):
     fmt = "s"
@@ -125,21 +124,23 @@ class StringField(MessageField):
 
     @needs_buffer
     def decode(self, buffer, values):
-
         field_size = buffer.find("\x00") + 1
         field_data = buffer[:field_size-1]
         left_overs = buffer[field_size:]
-
         return field_data.decode("utf8", "ignore"), left_overs
+
 
 class ShortField(MessageField):
     fmt = "h"
 
+
 class LongField(MessageField):
     fmt = "l"
 
+
 class FloatField(MessageField):
     fmt = "f"
+
 
 class MessageArrayField(MessageField):
     """
@@ -171,11 +172,9 @@ class MessageArrayField(MessageField):
         """
 
         MessageField.__init__(self, name)
-
         # Coerces the count argument to be a callable. For example,
         # in most cases count would be a Message.value_of(), however
         # if an integer is provided it will be wrapped in a lambda.
-
         self.count = count
         if not hasattr(count, "__call__"):
 
@@ -184,16 +183,12 @@ class MessageArrayField(MessageField):
 
             const_count.minimum = count
             self.count = const_count
-
         self.element = element
 
     def decode(self, buffer, values):
-
         entries = []
         count = 0
-
         while count < self.count(values):
-
             # Set start_buffer to the beginning of the buffer so that in
             # the case of buffer exhaustion it can return from the
             # start of the entry, not half-way through it.
@@ -204,7 +199,8 @@ class MessageArrayField(MessageField):
             #           LongField
             #           ShortField
             #
-            #       MessageArrayField(ComplexField, count=MessageArrayField.all())
+            #       MessageArrayField(ComplexField,
+            #                         count=MessageArrayField.all())
             #       ByteField()
             #
             # When attempting to decode the end of the buffer FF FF FF FF 00
@@ -218,9 +214,8 @@ class MessageArrayField(MessageField):
             # to ByteField which consumes one byte and the reamining
             # FF FF FF 00 bytes and stored as message payload.
             #
-            # This is very much an edge cases. :/
+            # This is very much an edge case. :/
             start_buffer = buffer
-
             try:
                 entry = self.element.decode(buffer)
                 buffer = entry.payload
@@ -231,10 +226,8 @@ class MessageArrayField(MessageField):
                 # buffer is reached.
                 if count < self.count.minimum:
                     raise BrokenMessageError(exc)
-
                 buffer = start_buffer
                 break
-
         return entries, buffer
 
     @staticmethod
@@ -246,8 +239,8 @@ class MessageArrayField(MessageField):
         def field(values, f):
             f.minimum = values[name]
             return values[name]
-        field.func_defaults = (field,)
 
+        field.func_defaults = (field,)
         return field
 
     @staticmethod
@@ -265,11 +258,12 @@ class MessageArrayField(MessageField):
         """
 
         i = [1]
+
         def all_(values):
             i[0] = i[0] + 1
             return i
-        all_.minimum = -1
 
+        all_.minimum = -1
         return all_
 
     @staticmethod
@@ -279,12 +273,14 @@ class MessageArrayField(MessageField):
         """
 
         i = [1]
+
         def at_least(values):
             i[0] = i[0] + 1
             return i
-        at_least.minimum = minimum
 
+        at_least.minimum = minimum
         return at_least
+
 
 class MessageDictField(MessageArrayField):
     """
@@ -303,27 +299,26 @@ class MessageDictField(MessageArrayField):
             count is the same as MessageArrayField.
         """
 
-        element = type("KeyValueField", (Message,), {"fields": (key_field, value_field)})
+        element = type("KeyValueField",
+                       (Message,), {"fields": (key_field, value_field)})
         self.key_field = key_field
         self.value_field = value_field
-
         MessageArrayField.__init__(self, name, element, count)
 
     def decode(self, buffer, values):
         entries, buffer = MessageArrayField.decode(self, buffer, values)
-
         entries_dict = {}
         for entry in entries:
-            entries_dict[entry[self.key_field.name]] = entry[self.value_field.name]
-
+            entries_dict[entry[
+                self.key_field.name]] = entry[self.value_field.name]
         return entries_dict, buffer
+
 
 class Message(object):
 
     fields = ()
 
     def __init__(self, payload=None, **field_values):
-
         self.fields = self.__class__.fields
         self.payload = payload
         self.values = field_values
@@ -338,188 +333,205 @@ class Message(object):
         del self.values[key]
 
     def encode(self, **field_values):
-
         values = dict(self.values, **field_values)
         buffer = []
         for field in self.__class__.fields:
             buffer.append(field.encode(values.get(field.name, None)))
-
         return "".join(buffer)
 
     @classmethod
     def decode(cls, packet):
-
         buffer = packet
         values = {}
         for field in cls.fields:
             values[field.name], buffer = field.decode(buffer, values)
-
         return cls(buffer, **values)
+
 
 class Header(Message):
 
     fields = (
-                LongField("split", validators=[lambda x: x in [SPLIT, NO_SPLIT]]),
-                )
+        LongField("split", validators=[lambda x: x in [SPLIT, NO_SPLIT]])
+    )
+
 
 class Fragment(Message):
 
     fields = (
-                LongField("message_id"),
-                ByteField("fragment_count"),
-                ByteField("fragment_id"), # 0-indexed
-                ShortField("mtu"),
-                )
+        LongField("message_id"),
+        ByteField("fragment_count"),
+        ByteField("fragment_id"),  # 0-indexed
+        ShortField("mtu")
+    )
 
     @property
     def is_compressed(self):
         return bool(self["message_id"] & 2**(2*8))
 
+
 # TODO: FragmentCompressionData
+
 
 class InfoRequest(Message):
 
     fields = (
-                ByteField("request_type", True, 0x54),
-                StringField("payload", True, "Source Engine Query"),
-                )
+        ByteField("request_type", True, 0x54),
+        StringField("payload", True, "Source Engine Query")
+    )
+
 
 class InfoResponse(Message):
 
     fields = (
-                ByteField("response_type", validators=[lambda x: x == 0x49]),
-                ByteField("protocol"),
-                StringField("server_name"),
-                StringField("map"),
-                StringField("folder"),
-                StringField("game"),
-                ShortField("app_id"),
-                ByteField("player_count"),
-                ByteField("max_players"),
-                ByteField("bot_count"),
-                ByteField("server_type"), # ServerField
-                ByteField("platform"), # PlatformField
-                ByteField("password_protected"), # BooleanField
-                ByteField("vac_enabled"), # BooleanField
-                StringField("version"),
-                # TODO: EDF
-                )
+        ByteField("response_type", validators=[lambda x: x == 0x49]),
+        ByteField("protocol"),
+        StringField("server_name"),
+        StringField("map"),
+        StringField("folder"),
+        StringField("game"),
+        ShortField("app_id"),
+        ByteField("player_count"),
+        ByteField("max_players"),
+        ByteField("bot_count"),
+        ByteField("server_type"),  # ServerField
+        ByteField("platform"),  # PlatformField
+        ByteField("password_protected"),  # BooleanField
+        ByteField("vac_enabled"),  # BooleanField
+        StringField("version")
+        # TODO: EDF
+    )
+
 
 class GetChallengeRequest(Message):
 
     fields = (
-                ByteField("request_type", True, 0x57),
-                )
+        ByteField("request_type", True, 0x57)
+    )
+
 
 class GetChallengeResponse(Message):
 
     fields = (
-                ByteField("response_type", validators=[lambda x: x == 0x41]),
-                LongField("challenge"),
-                )
+        ByteField("response_type", validators=[lambda x: x == 0x41]),
+        LongField("challenge")
+    )
+
 
 class PlayersRequest(Message):
 
     fields = (
-                ByteField("request_type", True, 0x55),
-                LongField("challenge"),
-                )
+        ByteField("request_type", True, 0x55),
+        LongField("challenge")
+    )
+
 
 class PlayerEntry(Message):
 
     fields = (
-                ByteField("index"),
-                StringField("name"),
-                LongField("score"),
-                FloatField("duration"),
-                )
+        ByteField("index"),
+        StringField("name"),
+        LongField("score"),
+        FloatField("duration")
+    )
+
 
 class PlayersResponse(Message):
 
     fields = (
-                ByteField("response_type", validators=[lambda x: x == 0x44]),
-                ByteField("player_count"),
-                MessageArrayField("players", PlayerEntry, MessageArrayField.value_of("player_count")),
-                )
+        ByteField("response_type", validators=[lambda x: x == 0x44]),
+        ByteField("player_count"),
+        MessageArrayField("players",
+                          PlayerEntry,
+                          MessageArrayField.value_of("player_count"))
+    )
+
 
 class RulesRequest(Message):
 
     fields = (
-                ByteField("request_type", True, 0x56),
-                LongField("challenge")
-                )
+        ByteField("request_type", True, 0x56),
+        LongField("challenge")
+    )
+
 
 class RulesResponse(Message):
 
     fields = (
-                # A2S_RESPONSE misteriously seems to add a FF FF FF FF
-                # long to the beginning of the response which isn't
-                # mentioned on the wiki.
-                #
-                # Behaviour witnessed with TF2 server 94.23.226.200:2045
-                LongField("long"),
+        # A2S_RESPONSE misteriously seems to add a FF FF FF FF
+        # long to the beginning of the response which isn't
+        # mentioned on the wiki.
+        #
+        # Behaviour witnessed with TF2 server 94.23.226.200:2045
+        LongField("long"),
+        ByteField("response_type", validators=[lambda x: x == 0x45]),
+        ShortField("rule_count"),
+        MessageDictField("rules",
+                         StringField("key"),
+                         StringField("value"),
+                         MessageArrayField.value_of("rule_count"))
+    )
 
-                ByteField("response_type", validators=[lambda x: x == 0x45]),
-                ShortField("rule_count"),
-                MessageDictField("rules", StringField("key"), StringField("value"), MessageArrayField.value_of("rule_count")),
-                )
 
 class PingRequest(Message):
 
     fields = (
-                ByteField("request_type", True, 0x69),
-                )
+        ByteField("request_type", True, 0x69)
+    )
+
 
 class PingResponse(Message):
 
     fields = (
-                ByteField("response_type", validators=[lambda x: x == 0x6a]),
-                StringField("payload", validators=[lambda x: x == "00000000000000"]),
-                )
+        ByteField("response_type", validators=[lambda x: x == 0x6a]),
+        StringField("payload", validators=[lambda x: x == "00000000000000"]),
+    )
+
 
 # For Master Server
 class MSAddressEntryPortField(MessageField):
     fmt = "!H"
 
+
 class MSAddressEntryIPField(MessageField):
 
     @needs_buffer
     def decode(self, buffer, values):
-
         if len(buffer) < 4:
             raise BufferExhaustedError
-
         field_data = buffer[:4]
         left_overs = buffer[4:]
+        return (".".join(str(b) for b in
+                struct.unpack("<BBBB", field_data)), left_overs)
 
-        return ".".join(str(b) for b in struct.unpack("<BBBB", field_data)), left_overs
 
 class MasterServerRequest(Message):
 
     fields = (
-                ByteField("request_type", True, 0x31),
-                ByteField("region"),
-                StringField("address"),
-                StringField("filter"),
-                )
+        ByteField("request_type", True, 0x31),
+        ByteField("region"),
+        StringField("address"),
+        StringField("filter")
+    )
+
 
 class MSAddressEntry(Message):
 
     fields = (
-                MSAddressEntryIPField("host"),
-                MSAddressEntryPortField("port"),
-                )
+        MSAddressEntryIPField("host"),
+        MSAddressEntryPortField("port")
+    )
 
     @property
     def is_null(self):
         return self["host"] == "0.0.0.0" and self["port"] == 0
 
+
 class MasterServerResponse(Message):
 
     fields = (
-                # The first two fields are always FF FF FF FF and 66 0A
-                # and can be ignored.
-                MSAddressEntryIPField("start_host"),
-                MSAddressEntryPortField("start_port"),
-                MessageArrayField("addresses", MSAddressEntry, MessageArrayField.all()),
-                )
+        # The first two fields are always FF FF FF FF and 66 0A
+        # and can be ignored.
+        MSAddressEntryIPField("start_host"),
+        MSAddressEntryPortField("start_port"),
+        MessageArrayField("addresses", MSAddressEntry, MessageArrayField.all())
+    )
