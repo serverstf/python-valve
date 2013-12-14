@@ -3,14 +3,17 @@
 
 import struct
 
-from steam.servers import BrokenMessageError, SPLIT, NO_SPLIT
+from . import SPLIT, NO_SPLIT
+
+
+class BrokenMessageError(Exception):
+    pass
 
 
 class BufferExhaustedError(BrokenMessageError):
 
-    def __init__(self):
-        BrokenMessageError.__init__(
-            self, "Buffer has been exhausted; incomplete message")
+    def __init__(self, message="Incomplete message"):
+        BrokenMessageError.__init__(self, message)
 
 
 def use_default(func):
@@ -22,10 +25,10 @@ def use_default(func):
 
 
 def needs_buffer(func):
-    def needs_buffer(self, buffer, values):
+    def needs_buffer(self, buffer, *args, **kwargs):
         if len(buffer) == 0:
             raise BufferExhaustedError
-        return func(self, buffer, values)
+        return func(self, buffer, *args, **kwargs)
     return needs_buffer
 
 
@@ -124,7 +127,10 @@ class StringField(MessageField):
 
     @needs_buffer
     def decode(self, buffer, values):
-        field_size = buffer.find("\x00") + 1
+        terminator = buffer.find("\x00")
+        if terminator == -1:
+            raise BufferExhaustedError("No string terminator")
+        field_size = terminator + 1
         field_data = buffer[:field_size-1]
         left_overs = buffer[field_size:]
         return field_data.decode("utf8", "ignore"), left_overs
@@ -178,7 +184,7 @@ class MessageArrayField(MessageField):
         self.count = count
         if not hasattr(count, "__call__"):
 
-            def const_count(values):
+            def const_count(values={}):
                 return count
 
             const_count.minimum = count
