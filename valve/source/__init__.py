@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2013 Oliver Ainsworth
 
 """
     Provides an interface for querying a Source server's state. Support

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2013 Oliver Ainsworth
 
 """
     Provides an dynamic interface to the Steam Web API. Making requests

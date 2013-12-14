@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2013 Oliver Ainsworth
 
 """
     Provides the ability to process and represent SteamIDs in multiple formats.

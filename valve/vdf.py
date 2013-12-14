@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2013 Oliver Ainsworth
+
 """
     Implements a parser for the Valve Data Format (VDF,) or as often
     refered KeyValues.
