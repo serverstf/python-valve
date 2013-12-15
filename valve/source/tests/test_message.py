@@ -19,7 +19,7 @@ class TestUseDefault(object):
         called = []
 
         @messages.use_default
-        def test(instance, value):
+        def test(instance, value, values):
             called.append(None)
             assert value == 5
 
@@ -31,7 +31,7 @@ class TestUseDefault(object):
         called = []
 
         @messages.use_default
-        def test(instance, value):
+        def test(instance, value, values):
             called.append(None)
             assert value == 5
 
@@ -44,7 +44,7 @@ class TestUseDefault(object):
         called = []
 
         @messages.use_default
-        def test(instance, value):
+        def test(instance, value, values):
             called.append(None)
             assert value == 10
 
@@ -56,7 +56,7 @@ class TestUseDefault(object):
         called = []
 
         @messages.use_default
-        def test(instance, value):
+        def test(instance, value, values):
             called.append(None)
             assert value == 5
 
@@ -90,10 +90,8 @@ class TestNeedsBuffer(object):
 class TestMessageField(object):
 
     def test_default_little_endian(self):
-
         class TestField(messages.MessageField):
             fmt = "i"
-
         assert TestField("").format.startswith("<")
 
     def test_explicit_endian(self):
@@ -146,12 +144,39 @@ class TestMessageField(object):
         with pytest.raises(messages.BrokenMessageError):
             field.decode(b"\x01\x02\x03")
 
+    @pytest.mark.parametrize("field,value,expected", [
+        (messages.ByteField, 26, b"\x1A"),
+        (messages.ShortField, 4056, b"\xD8\x0F"),
+        (messages.LongField, 2394838, b"\xD6\x8A\x24\x00"),
+        (messages.FloatField, 1.0, b"\x00\x00\x80\x3F"),
+        (messages.MSAddressEntryPortField, 6969, b"\x1B\x39")
+    ])
+    def test_encode(self, field, value, expected):
+        encoded = field("").encode(value)
+        assert isinstance(encoded, bytes)
+        assert encoded == expected
+
+    @pytest.mark.parametrize("field,value", [
+        (messages.ByteField, -1),
+        (messages.ByteField, 256),
+        (messages.ShortField, -32769),
+        (messages.ShortField, 32768),
+        (messages.LongField, -2147483649),
+        (messages.LongField, 2147483648),
+        (messages.MSAddressEntryPortField, -1),
+        (messages.MSAddressEntryPortField, 65536)
+    ])
+    def test_encode_out_of_range(self, field, value):
+        with pytest.raises(messages.BrokenMessageError):
+            field("").encode(value)
+
 
 class TestStringField(object):
 
     def test_encode(self):
         field = messages.StringField("")
         encoded = field.encode("Hello")
+        assert isinstance(encoded, bytes)
         assert encoded.endswith(b"\x00")
         assert encoded[:-1] == b"\x48\x65\x6C\x6C\x6F"
 
@@ -176,6 +201,16 @@ class TestStringField(object):
 
 
 class TestMessageArrayField(object):
+
+    @pytest.fixture
+    def Message(self):
+        """Simple message with a byte field and short filed"""
+        class Message(messages.Message):
+            fields = (
+                messages.ByteField("byte"),
+                messages.ShortField("short")
+            )
+        return Message
 
     def test_constant_count(self):
         array = messages.MessageArrayField("", None, 5)
@@ -236,10 +271,10 @@ class TestMessageArrayField(object):
         assert isinstance(remnants, bytes)
         assert remnants == b"\x22"
 
-    def test_count_value_of(self):
+    def test_deocde_value_of(self):
         assert messages.MessageArrayField.value_of("f")({"f": 26}) == 26
 
-    def test_count_all(self):
+    def test_deocde_all(self):
         class Message(messages.Message):
             fields = messages.ByteField(""),
         array = messages.MessageArrayField(
@@ -248,7 +283,7 @@ class TestMessageArrayField(object):
         assert len(values) == 128
         assert not remnants
 
-    def test_count_all_remnants(self):
+    def test_deocde_all_remnants(self):
         class Message(messages.Message):
             fields = messages.ShortField(""),
         array = messages.MessageArrayField(
@@ -258,7 +293,7 @@ class TestMessageArrayField(object):
         assert isinstance(remnants, bytes)
         assert remnants == b"\xFF"
 
-    def test_count_at_least_minimum(self):
+    def test_deocde_at_least_minimum(self):
         class Message(messages.Message):
             fields = messages.ByteField(""),
         array = messages.MessageArrayField(
@@ -267,7 +302,7 @@ class TestMessageArrayField(object):
         assert len(values) == 5
         assert not remnants
 
-    def test_count_at_least_more(self):
+    def test_decode_at_least_more(self):
         class Message(messages.Message):
             fields = messages.ByteField(""),
         array = messages.MessageArrayField(
@@ -276,7 +311,7 @@ class TestMessageArrayField(object):
         assert len(values) == 10
         assert not remnants
 
-    def test_count_at_least_too_few(self):
+    def test_deocde_at_least_too_few(self):
         class Message(messages.Message):
             fields = messages.ByteField(""),
         array = messages.MessageArrayField(
@@ -284,7 +319,7 @@ class TestMessageArrayField(object):
         with pytest.raises(messages.BrokenMessageError):
             array.decode(b"\x00" * 4)
 
-    def test_count_at_least_remnants(self):
+    def test_deocde_at_least_remnants(self):
         class Message(messages.Message):
             fields = messages.ShortField(""),
         array = messages.MessageArrayField(
@@ -293,6 +328,78 @@ class TestMessageArrayField(object):
         assert len(values) == 10
         assert isinstance(remnants, bytes)
         assert remnants == b"\xFF"
+
+    def test_encode(self, Message):
+        array = messages.MessageArrayField("", Message, 3)
+        elements = [Message(byte=255, short=0x11AA)] * 3
+        encoded = array.encode(elements)
+        assert isinstance(encoded, bytes)
+        assert encoded == elements[0].encode() * 3
+
+    def test_encode_invalid_element(self):
+        class Element(messages.Message):
+            fields = ()
+        class Borked(messages.Message):
+            fields = ()
+        array = messages.MessageArrayField("", Element, 3)
+        with pytest.raises(messages.BrokenMessageError):
+            array.encode([Borked()])
+
+    def test_encode_too_many_elements(self, Message):
+        array = messages.MessageArrayField("", Message, 3)
+        elements = [Message(byte=255, short=0x11AA)] * 5
+        with pytest.raises(messages.BrokenMessageError):
+            array.encode(elements)
+
+    def test_encode_too_few_elements(self, Message):
+        array = messages.MessageArrayField("", Message, 5)
+        elements = [Message(byte=255, short=0x11AA)] * 3
+        with pytest.raises(messages.BrokenMessageError):
+            array.encode(elements)
+
+    def test_encode_all(self, Message):
+        array = messages.MessageArrayField("", Message)
+        elements = [Message(byte=255, short=0x11AA)] * 10
+        encoded = array.encode(elements)
+        assert isinstance(encoded, bytes)
+        assert encoded == elements[0].encode() * 10
+
+    def test_encode_all_none(self, Message):
+        array = messages.MessageArrayField("", Message)
+        encoded = array.encode([])
+        assert isinstance(encoded, bytes)
+        assert len(encoded) == 0
+
+    def test_encode_value_of(self, Message):
+        array = messages.MessageArrayField(
+            "", Message, messages.MessageArrayField.value_of("life"))
+        elements = [Message(byte=255, short=0x11AA)] * 5
+        encoded = array.encode(elements, {"life": 5})
+        assert isinstance(encoded, bytes)
+        assert encoded == elements[0].encode() * 5
+
+    def test_encode_at_least_minimum(self, Message):
+        array = messages.MessageArrayField(
+            "", Message, messages.MessageArrayField.at_least(3))
+        elements = [Message(byte=255, short=0x11AA)] * 3
+        encoded = array.encode(elements)
+        assert isinstance(encoded, bytes)
+        assert encoded == elements[0].encode() * 3
+
+    def test_encode_at_least_more(self, Message):
+        array = messages.MessageArrayField(
+            "", Message, messages.MessageArrayField.at_least(3))
+        elements = [Message(byte=255, short=0x11AA)] * 5
+        encoded = array.encode(elements)
+        assert isinstance(encoded, bytes)
+        assert encoded == elements[0].encode() * 5
+
+    def test_encode_at_least_too_few(self, Message):
+        array = messages.MessageArrayField(
+            "", Message, messages.MessageArrayField.at_least(5))
+        elements = [Message(byte=255, short=0x11AA)] * 4
+        with pytest.raises(messages.BrokenMessageError):
+            encoded = array.encode(elements)
 
 
 class TestMessageDictField(object):
@@ -360,7 +467,32 @@ class TestMessage(object):
         assert isinstance(encoded, bytes)
         assert encoded == b"\x05\x0A"
 
+    def test_encode_array(self):
+        count = Mock(return_value=1)
+        count.minimum = 1
+        class Element(messages.Message):
+            fields = ()
+            encode = Mock(return_value=b"")
+        class Message(messages.Message):
+            fields = (
+                messages.ByteField("byte"),
+                messages.MessageArrayField("array", Element, count)
+            )
+        message = Message(byte=26, array=[Element()])
+        encoded = message.encode()
+        assert isinstance(encoded, bytes)
+        assert Element.encode.called
+        assert count.called
+        assert count.call_args[0][0] == message.values
+
     # TODO: more complex structures, e.g. ArrayField and DictFields
+
+class TestFragment(object):
+
+    def test_is_compressed(self):
+        assert messages.Fragment(message_id=(1 << 31) - 1).is_compressed
+        assert not messages.Fragment(message_id=1 << 30).is_compressed
+
 
 class TestMSAddressEntry(object):
 

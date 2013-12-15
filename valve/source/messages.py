@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2013 Oliver Ainsworth
 
+from __future__ import (absolute_import,
+                        unicode_literals, print_function, division)
+
 import struct
 
 from . import SPLIT, NO_SPLIT
@@ -17,10 +20,10 @@ class BufferExhaustedError(BrokenMessageError):
 
 
 def use_default(func):
-    def use_default(self, value=None):
+    def use_default(self, value=None, values={}):
         if value is None:
-            return func(self, self.default_value)
-        return func(self, value)
+            return func(self, self.default_value, values)
+        return func(self, value, values)
     return use_default
 
 
@@ -54,8 +57,8 @@ class MessageField(object):
         """
 
         if self.__class__.fmt is not None:
-            if self.__class__.fmt[0] not in "@=<>!":
-                self.format = "<" + self.__class__.fmt
+            if self.__class__.fmt[0] not in b"@=<>!":
+                self.format = b"<" + self.__class__.fmt
             else:
                 self.format = self.__class__.fmt
         self.name = name
@@ -83,8 +86,11 @@ class MessageField(object):
         return value
 
     @use_default
-    def encode(self, value):
-        return struct.pack(self.format, self.validate(value))
+    def encode(self, value, values={}):
+        try:
+            return struct.pack(self.format, self.validate(value))
+        except struct.error as exc:
+            raise BrokenMessageError(exc)
 
     @needs_buffer
     def decode(self, buffer, values={}):
@@ -118,19 +124,19 @@ class MessageField(object):
 
 
 class ByteField(MessageField):
-    fmt = "B"
+    fmt = b"B"
 
 
 class StringField(MessageField):
-    fmt = "s"
+    fmt = b"s"
 
     @use_default
-    def encode(self, value):
-        return value.encode("utf8") + "\x00"
+    def encode(self, value, values={}):
+        return value.encode("utf8") + b"\x00"
 
     @needs_buffer
     def decode(self, buffer, values={}):
-        terminator = buffer.find("\x00")
+        terminator = buffer.find(b"\x00")
         if terminator == -1:
             raise BufferExhaustedError("No string terminator")
         field_size = terminator + 1
@@ -140,15 +146,15 @@ class StringField(MessageField):
 
 
 class ShortField(MessageField):
-    fmt = "h"
+    fmt = b"h"
 
 
 class LongField(MessageField):
-    fmt = "l"
+    fmt = b"l"
 
 
 class FloatField(MessageField):
-    fmt = "f"
+    fmt = b"f"
 
 
 class MessageArrayField(MessageField):
@@ -158,7 +164,7 @@ class MessageArrayField(MessageField):
         same message.)
     """
 
-    def __init__(self, name, element, count):
+    def __init__(self, name, element, count=None):
         """
             element -- the Message subclass that will attempt to be decoded
 
@@ -181,6 +187,8 @@ class MessageArrayField(MessageField):
         """
 
         MessageField.__init__(self, name)
+        if count is None:
+            count = self.all()
         # Coerces the count argument to be a callable. For example,
         # in most cases count would be a Message.value_of(), however
         # if an integer is provided it will be wrapped in a lambda.
@@ -193,6 +201,20 @@ class MessageArrayField(MessageField):
             const_count.minimum = count
             self.count = const_count
         self.element = element
+
+    def encode(self, elements, values={}):
+        buf = []
+        for i, element in enumerate(elements):
+            if not isinstance(element, self.element):
+                raise BrokenMessageError(
+                    "Element {} ({}) is not instance of {}".format(
+                        i, element, self.element.__name__))
+            if i + 1 > self.count(values):
+                raise BrokenMessageError("Too many elements")
+            buf.append(element.encode())
+        if len(buf) < self.count.minimum:
+            raise BrokenMessageError("Too few elements")
+        return b"".join(buf)
 
     def decode(self, buffer, values={}):
         entries = []
@@ -245,7 +267,7 @@ class MessageArrayField(MessageField):
             Reference another field's value as the argument 'count'.
         """
 
-        def field(values, f):
+        def field(values={}, f=None):
             f.minimum = values[name]
             return values[name]
 
@@ -268,7 +290,7 @@ class MessageArrayField(MessageField):
 
         i = [1]
 
-        def all_(values):
+        def all_(values={}):
             i[0] = i[0] + 1
             return i
 
@@ -283,7 +305,7 @@ class MessageArrayField(MessageField):
 
         i = [1]
 
-        def at_least(values):
+        def at_least(values={}):
             i[0] = i[0] + 1
             return i
 
@@ -298,7 +320,7 @@ class MessageDictField(MessageArrayField):
         a dictionary instead of a list.
     """
 
-    def __init__(self, name, key_field, value_field, count):
+    def __init__(self, name, key_field, value_field, count=None):
         """
             key_field and value_field are the respective components
             of the name-value pair that are to be decoded. The fields
@@ -308,7 +330,7 @@ class MessageDictField(MessageArrayField):
             count is the same as MessageArrayField.
         """
 
-        element = type("KeyValueField",
+        element = type(b"KeyValueField",
                        (Message,), {"fields": (key_field, value_field)})
         self.key_field = key_field
         self.value_field = value_field
@@ -346,10 +368,10 @@ class Message(object):
 
     def encode(self, **field_values):
         values = dict(self.values, **field_values)
-        buffer = []
-        for field in self.__class__.fields:
-            buffer.append(field.encode(values.get(field.name, None)))
-        return "".join(buffer)
+        buf = []
+        for field in self.fields:
+            buf.append(field.encode(values.get(field.name, None), values))
+        return b"".join(buf)
 
     @classmethod
     def decode(cls, packet):
@@ -501,7 +523,7 @@ class PingResponse(Message):
 
 # For Master Server
 class MSAddressEntryPortField(MessageField):
-    fmt = "!H"
+    fmt = b"!H"
 
 
 class MSAddressEntryIPField(MessageField):
@@ -512,8 +534,8 @@ class MSAddressEntryIPField(MessageField):
             raise BufferExhaustedError
         field_data = buffer[:4]
         left_overs = buffer[4:]
-        return (u".".join(unicode(b) for b in
-                struct.unpack("<BBBB", field_data)), left_overs)
+        return (".".join(unicode(b) for b in
+                struct.unpack(b"<BBBB", field_data)), left_overs)
 
 
 class MasterServerRequest(Message):
