@@ -73,7 +73,10 @@ class MessageField(object):
 
     def validate(self, value):
         for validator in self.validators:
-            if not validator(value):
+            try:
+                if not validator(value):
+                    raise ValueError
+            except Exception:
                 raise BrokenMessageError(
                     "Invalid value ({}) for field '{}'".format(
                         value, self.name))
@@ -84,7 +87,7 @@ class MessageField(object):
         return struct.pack(self.format, self.validate(value))
 
     @needs_buffer
-    def decode(self, buffer, values):
+    def decode(self, buffer, values={}):
         """
             Accepts a string of raw bytes which it will attempt to
             decode into some Python object which is returned. All
@@ -126,7 +129,7 @@ class StringField(MessageField):
         return value.encode("utf8") + "\x00"
 
     @needs_buffer
-    def decode(self, buffer, values):
+    def decode(self, buffer, values={}):
         terminator = buffer.find("\x00")
         if terminator == -1:
             raise BufferExhaustedError("No string terminator")
@@ -191,7 +194,7 @@ class MessageArrayField(MessageField):
             self.count = const_count
         self.element = element
 
-    def decode(self, buffer, values):
+    def decode(self, buffer, values={}):
         entries = []
         count = 0
         while count < self.count(values):
@@ -311,7 +314,7 @@ class MessageDictField(MessageArrayField):
         self.value_field = value_field
         MessageArrayField.__init__(self, name, element, count)
 
-    def decode(self, buffer, values):
+    def decode(self, buffer, values={}):
         entries, buffer = MessageArrayField.decode(self, buffer, values)
         entries_dict = {}
         for entry in entries:
@@ -333,10 +336,13 @@ class Message(object):
         return self.values[key]
 
     def __setitem__(self, key, value):
-        self.values[key] == value
+        self.values[key] = value
 
     def __delitem__(self, key):
         del self.values[key]
+
+    def __contains__(self, key):
+        return key in self.values
 
     def encode(self, **field_values):
         values = dict(self.values, **field_values)
@@ -501,12 +507,12 @@ class MSAddressEntryPortField(MessageField):
 class MSAddressEntryIPField(MessageField):
 
     @needs_buffer
-    def decode(self, buffer, values):
+    def decode(self, buffer, values={}):
         if len(buffer) < 4:
             raise BufferExhaustedError
         field_data = buffer[:4]
         left_overs = buffer[4:]
-        return (".".join(str(b) for b in
+        return (u".".join(unicode(b) for b in
                 struct.unpack("<BBBB", field_data)), left_overs)
 
 
