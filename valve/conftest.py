@@ -7,6 +7,7 @@ from __future__ import (absolute_import,
 import errno
 import os
 import shlex
+import socket
 import subprocess
 import time
 
@@ -39,7 +40,9 @@ class SRCDSRunner(object):
         self.executable = os.path.join(self.directory, "srcds.exe")
         self.process = None
         self.address = ("127.0.0.1", self._port)
-        self._port += 1
+        # SRCDS will bind to port -10 and +10 so might as well give it
+        # some 'clearance space'
+        self._port += 100
 
     def run(self):
         """Run the SRCDS instance"""
@@ -55,11 +58,20 @@ class SRCDSRunner(object):
         self._wait_til_ready()
 
     def _wait_til_ready(self):
-        """Waits until the server is ready or timesout"""
-        # This is really fragile but there's doesn't seem to be any
-        # alternative ATM becuse SRCDS really didn't like me attmepting
-        # to search for a landmark in its stdout.
-        time.sleep(20)
+        """Waits until the server is ready or timesout (20s)"""
+        # A listen TCP socket is created on the address -ip -port
+        timeout = time.time() + 20
+        while time.time() < timeout:
+            try:
+                sock = socket.socket(socket.AF_INET,
+                                     socket.SOCK_STREAM,
+                                     socket.IPPROTO_TCP)
+                sock.connect(self.address)
+                return
+            except socket.error as exc:
+                if exc.errno != errno.ECONNREFUSED:
+                    raise
+        raise RuntimeError("'{}' didn't start".format(self.instance))
 
     def _kill(self):
         """Stop the process; forcibly if it doesn't stop within 10 secsonds"""
@@ -90,7 +102,6 @@ def srcds(request):
     """
     srcds_opt = request.config.getoption("srcds")
     if srcds_opt:
-        print(srcds_opt)
         instances = srcds_opt.split(",")
         if instances == ["all"]:
             pass
