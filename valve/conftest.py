@@ -37,7 +37,13 @@ class SRCDSRunner(object):
     def __init__(self, instance):
         self.instance = instance
         self.directory = srcds_instances[instance]
-        self.executable = os.path.join(self.directory, "srcds.exe")
+        if sys.platform.startswith("linux"):
+            exe = "srcds_run"
+        elif sys.platform.startswith("win"):
+            exe = "srcds.exe"
+        else:
+            raise OSError("Platform '{}' not supported".format(sys.platform))
+        self.executable = os.path.join(self.directory, exe)
         self.process = None
         self.address = ("127.0.0.1", self._port)
         # SRCDS will bind to port -10 and +10 so might as well give it
@@ -67,6 +73,7 @@ class SRCDSRunner(object):
                                      socket.SOCK_STREAM,
                                      socket.IPPROTO_TCP)
                 sock.connect(self.address)
+                sock.close()
                 return
             except socket.error as exc:
                 if exc.errno != errno.ECONNREFUSED:
@@ -81,9 +88,10 @@ class SRCDSRunner(object):
             while self.process.poll() is None and time.time() < timeout:
                 pass
             self.process.kill()
-        except (OSError, WindowsError) as exc:
+        except OSError as exc:
             if exc.errno not in [errno.ESRCH, errno.EACCES]:
                 raise
+
 
 
 @pytest.fixture(scope="session", params=srcds_instances.keys())
