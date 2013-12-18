@@ -385,7 +385,7 @@ class Message(object):
 class Header(Message):
 
     fields = (
-        LongField("split", validators=[lambda x: x in [SPLIT, NO_SPLIT]])
+        LongField("split", validators=[lambda x: x in [SPLIT, NO_SPLIT]]),
     )
 
 
@@ -439,7 +439,7 @@ class InfoResponse(Message):
 class GetChallengeRequest(Message):
 
     fields = (
-        ByteField("request_type", True, 0x57)
+        ByteField("request_type", True, 0x57),
     )
 
 
@@ -509,7 +509,7 @@ class RulesResponse(Message):
 class PingRequest(Message):
 
     fields = (
-        ByteField("request_type", True, 0x69)
+        ByteField("request_type", True, 0x69),
     )
 
 

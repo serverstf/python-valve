@@ -5,7 +5,7 @@ import socket
 import select
 import time
 
-from . import messages
+from . import SPLIT, NO_SPLIT, messages
 
 
 class NoResponseError(Exception):
