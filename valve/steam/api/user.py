@@ -8,6 +8,7 @@ from __future__ import (absolute_import,
 import datetime
 
 from .exceptions import SteamAPIError
+from .util import APIObjectsIterator
 from ..id import SteamID, SteamIDError
 
 
@@ -113,8 +114,8 @@ class User(object):
             relation = friend["relationship"]
             id = SteamID.from_community_url(
                 SteamID.base_community_url + "id/" + friend["steamid"])
-            friends.append(Friend(self._api, id, self, since, relation))
-        return friends
+            friends.append([(self._api, id, self, since, relation), {}])
+        return APIObjectsIterator(Friend, friends)
 
     def groups(self):
         """List of IDs for the groups the user is member to
