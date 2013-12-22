@@ -42,6 +42,7 @@ class User(object):
     def __init__(self, api, id):
         self._api = api
         self.id = id
+        self._bans = {}
         self.update()
 
     def __eq__(self, other):
@@ -51,6 +52,42 @@ class User(object):
             return self.id == other.id
         else:
             return object.__eq__(self, other)
+
+    @property
+    def is_community_banned(self):
+        if not self._bans:
+            self._update_bans()
+        return self._bans["CommunityBanned"]
+
+    @property
+    def is_vac_banned(self):
+        if not self._bans:
+            self._update_bans()
+        return self._bans["VACBanned"]
+
+    @property
+    def is_trade_banned(self):
+        if not self._bans:
+            self._update_bans()
+        return self._bans["EconomyBan"] not in ["none", "probation"]
+
+    @property
+    def is_on_trade_probation(self):
+        if not self._bans:
+            self._update_bans()
+        return self._bans["EconomyBan"] == "probation"
+
+    def _update_bans(self):
+        """Fetch the ban status for the user
+
+        Response includes ``CommunityBanned``, ``DaysSinceLastBan``,
+        ``EconomyBan`` ("none", "probation", don't know what the
+        string is for banned,) ``NumberOfVACBans``,  ``VACBanned``.
+        """
+        response = self._api.request("GET",
+                                     "ISteamUser/GetPlayerBans",
+                                     1, {"steamids": self.id.as_64()})
+        self._bans = response["players"][0]
 
     def update(self):
         response = self._api.request("GET",
@@ -94,6 +131,8 @@ class User(object):
             self.game_server = (host, port)
         else:
             self.game_server = None
+        if self._bans:
+            self._update_bans()
 
     @property
     def is_ingame(self):
