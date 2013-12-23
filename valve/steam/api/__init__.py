@@ -9,7 +9,7 @@ import requests
 from . import user
 from .exceptions import SteamAPIError
 from .util import (DOTA2_TEST, PAYDAY2, TF2, DOTA2,
-                   PORTAL2, CSGO_BETA, CSGO, PORTAL2_BETA)
+                   PORTAL2, CSGO_BETA, CSGO, PORTAL2_BETA, TRADING_CARDS)
 from ..id import SteamID, SteamIDError
 
 
