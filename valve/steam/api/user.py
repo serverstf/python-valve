@@ -7,9 +7,43 @@ from __future__ import (absolute_import,
 
 import datetime
 
+from .items import Inventory
 from .exceptions import SteamAPIError
-from .util import APIObjectsIterator
+from .util import APIObjectsIterator, resolve_appid, appid_to_sym
 from ..id import SteamID, SteamIDError
+
+
+class _Inventories(object):
+
+    def __init__(self, api, user):
+        self.api = api
+        self.user = user
+        self.cache = {}
+
+    def __getitem__(self, inv):
+        """Get an Inventory instance corresponding to the given app
+
+        ``inv`` can either be a a numeric application ID, one of the
+        application ID constants from ``valve.steam.api``, or one of
+        the following symbolic names as a string:
+            * dota-test
+            * payday
+            * tf2
+            * dota
+            * portal
+            * csgo-beta
+            * csgo
+            * portal-2
+        """
+        inv = resolve_appid(inv)
+        if inv not in self.cache:
+            self.cache[inv] = Inventory(self.api, self.user, inv)
+        return self.cache[inv]
+
+    def __iter__(self):
+        """Generator of all available invetories"""
+        for appid in appid_to_sym.keys():
+            yield self[appid]
 
 
 class User(object):
@@ -43,6 +77,7 @@ class User(object):
         self._api = api
         self.id = id
         self._bans = {}
+        self.inventories = _Inventories(self._api, self)
         self.update()
 
     def __eq__(self, other):

@@ -4,6 +4,8 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
+from . import util
+
 
 class SchemaItem(object):
 
@@ -15,7 +17,8 @@ class SchemaItem(object):
 
     def __repr__(self):
         return "<{} '{}' for '{}'>".format(
-            self.__class__.__name__, self.name, self.schema.appid)
+            self.__class__.__name__, self.name,
+            util.appid_to_name.get(self.schema.appid, self.schema.appid))
 
 
 class Schema(object):
@@ -36,9 +39,10 @@ class Schema(object):
             self.items[item.index] = item
 
     def __repr__(self):
-        return "<{} for '{}' with items>".format(self.__class__.__name__,
-                                                 self.appid,
-                                                 len(self))
+        return "<{} for '{}' with items>".format(
+            self.__class__.__name__,
+            util.appid_to_name.get(appid, appid),
+            len(self))
 
     def __iter__(self):
         return self.items.itervalues()
