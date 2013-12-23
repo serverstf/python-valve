@@ -5,6 +5,7 @@ from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
 from . import util
+from . import exceptions
 
 
 class SchemaItem(object):
@@ -97,5 +98,64 @@ class Inventory(object):
             "GET", "IEconItems_{}/GetPlayerItems".format(self.appid),
             1, {"steamid": self.user.id.as_64()})["result"]
         self.capacity = response["num_backpack_slots"]
+        items = []
         for item_def in response["items"]:
-            self.items.append(Item(item_def, self.schema))
+            items.append(Item(item_def, self.schema))
+        self.items = items
+
+
+class TradingCard(object):
+
+    icon_root = "http://cdn.steamcommunity.com/economy/image/"
+
+    def __init__(self, card, schema):
+        self.id = int(card["id"])
+        self.class_id = int(card["classid"])
+        self.instance_id = int(card["instanceid"])
+        self.quantity = int(card["amount"])
+        schema_entry = schema["{}_{}".format(self.class_id,
+                                             self.instance_id)]
+        self.appid = int(schema_entry["market_fee_app"])
+        self.name = schema_entry["market_hash_name"]
+        self.display_name = schema_entry["market_name"]
+        self.tradeable = bool(schema_entry["marketable"])
+        self.icons = {
+            "small": self.icon_root + schema_entry["icon_url"],
+            "large": self.icon_root + schema_entry["icon_url_large"],
+        }
+        self.foil = False
+        for tag in schema_entry["tags"]:
+            # Should probably check that internal_name == item_class_2
+            # To make sure it's actually a trading card
+            if (tag["category"] == "cardborder"
+                    and tag["internal_name"] == "cardborder_1"):
+                self.foil = True
+
+    def __repr__(self):
+        return "<{} '{}'>".format(self.__class__.__name__, self.name,)
+
+
+class TradingCards(object):
+
+    def __init__(self, api, user):
+        self._api = api
+        self.user = user
+        self.items = []
+        self.update()
+
+    def __iter__(self):
+        return iter(self.items)
+
+    def __len__(self):
+        return len(self.items)
+
+    def update(self):
+        url = ("http://steamcommunity.com/profiles/"
+               "{}/inventory/json/753/6".format(self.user.id.as_64()))
+        response = self._api.session.request("GET", url).json()
+        if not response["success"]:
+            raise exceptions.SteamAPIError("Request was unsuccessful")
+        items = []
+        for card in response["rgInventory"].itervalues():
+            items.append(TradingCard(card, response["rgDescriptions"]))
+        self.items = items

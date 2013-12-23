@@ -7,9 +7,9 @@ from __future__ import (absolute_import,
 
 import datetime
 
-from .items import Inventory
+from . import util
+from .items import Inventory, TradingCards
 from .exceptions import SteamAPIError
-from .util import APIObjectsIterator, resolve_appid, appid_to_sym
 from ..id import SteamID, SteamIDError
 
 
@@ -34,15 +34,24 @@ class _Inventories(object):
             * csgo-beta
             * csgo
             * portal-2
+            * trading-cards
+
+        The ``trading-cards`` is slightly different and will return a
+        TradingsCard instance instead of a regular Inventory one. This
+        gives access to a user's Steam trading cards via an unofficial
+        API.
         """
-        inv = resolve_appid(inv)
+        inv = util.resolve_appid(inv)
         if inv not in self.cache:
-            self.cache[inv] = Inventory(self.api, self.user, inv)
+            if inv == util.TRADING_CARDS:
+                self.cache[inv] = TradingCards(self.api, self.user)
+            else:
+                self.cache[inv] = Inventory(self.api, self.user, inv)
         return self.cache[inv]
 
     def __iter__(self):
         """Generator of all available invetories"""
-        for appid in appid_to_sym.keys():
+        for appid in util.appid_to_sym.keys():
             yield self[appid]
 
 
@@ -189,7 +198,7 @@ class User(object):
             id = SteamID.from_community_url(
                 SteamID.base_community_url + "id/" + friend["steamid"])
             friends.append([(self._api, id, self, since, relation), {}])
-        return APIObjectsIterator(Friend, friends)
+        return util.APIObjectsIterator(Friend, friends)
 
     def groups(self):
         """List of IDs for the groups the user is member to

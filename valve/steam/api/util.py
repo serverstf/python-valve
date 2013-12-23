@@ -5,6 +5,7 @@ from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
 
+TRADING_CARDS = -1
 DOTA2_TEST = 205790
 PAYDAY2 = 218620
 # Unknown 221540
@@ -21,6 +22,7 @@ CSGO = 730
 PORTAL2_BETA = 841
 
 appid_to_sym = {
+    TRADING_CARDS: "trading-cards",
     DOTA2_TEST: "dota-test",
     PAYDAY2: "payday",
     TF2: "tf2",
@@ -33,6 +35,7 @@ appid_to_sym = {
 sym_to_appid = {v: k for k, v in appid_to_sym.items()}
 
 appid_to_name = {
+    TRADING_CARDS: "Steam Trading Cards",
     DOTA2_TEST: "Dota 2 Test",
     PAYDAY2: "Payday 2",
     TF2: "Team Fortress 2",
