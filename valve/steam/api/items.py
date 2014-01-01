@@ -40,7 +40,7 @@ class Schema(object):
             self.items[item.index] = item
 
     def __repr__(self):
-        return "<{} for '{}' with items>".format(
+        return "<{} for '{}' with {} items>".format(
             self.__class__.__name__,
             util.appid_to_name.get(self.appid, self.appid),
             len(self))
