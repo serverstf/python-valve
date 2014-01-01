@@ -106,7 +106,7 @@ class Inventory(object):
 
 class TradingCard(object):
 
-    icon_root = "http://cdn.steamcommunity.com/economy/image/"
+    _icon_root = "http://cdn.steamcommunity.com/economy/image/"
 
     def __init__(self, card, schema):
         self.id = int(card["id"])
@@ -120,8 +120,8 @@ class TradingCard(object):
         self.display_name = schema_entry["market_name"]
         self.tradeable = bool(schema_entry["marketable"])
         self.icons = {
-            "small": self.icon_root + schema_entry["icon_url"],
-            "large": self.icon_root + schema_entry["icon_url_large"],
+            "small": self._icon_root + schema_entry["icon_url"],
+            "large": self._icon_root + schema_entry["icon_url_large"],
         }
         self.foil = False
         for tag in schema_entry["tags"]:
@@ -139,6 +139,7 @@ class TradingCards(object):
 
     def __init__(self, api, user):
         self._api = api
+        self.appid = util.TRADING_CARDS
         self.user = user
         self.items = []
         self.update()
@@ -148,6 +149,10 @@ class TradingCards(object):
 
     def __len__(self):
         return len(self.items)
+
+    @property
+    def utilisation(self):
+        return 1.0
 
     def update(self):
         url = ("http://steamcommunity.com/profiles/"
