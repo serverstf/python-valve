@@ -46,7 +46,7 @@ class SRCDSRunner(object):
             raise OSError("Platform '{}' not supported".format(sys.platform))
         self.executable = os.path.join(self.directory, exe)
         self.process = None
-        self.address = ("127.0.0.1", self._port)
+        self.address = (socket.gethostname(), self._port)
         # SRCDS will bind to port -10 and +10 so might as well give it
         # some 'clearance space'
         self._port += 100
@@ -75,6 +75,7 @@ class SRCDSRunner(object):
                                      socket.IPPROTO_TCP)
                 sock.connect(self.address)
                 sock.close()
+                time.sleep(20.0)
                 return
             except socket.error as exc:
                 if exc.errno != errno.ECONNREFUSED:
