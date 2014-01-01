@@ -42,7 +42,7 @@ class Schema(object):
     def __repr__(self):
         return "<{} for '{}' with items>".format(
             self.__class__.__name__,
-            util.appid_to_name.get(appid, appid),
+            util.appid_to_name.get(self.appid, self.appid),
             len(self))
 
     def __iter__(self):
