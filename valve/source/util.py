@@ -97,7 +97,7 @@ class Platform(object):
         if not isinstance(other, Platform):
             other = Platform(other)
         if self.value == 109 or self.value == 111:
-            return other.value == 109 or other.value == 11
+            return other.value == 109 or other.value == 111
         else:
             return self.value == other.value
 
