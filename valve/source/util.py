@@ -115,3 +115,95 @@ class Platform(object):
 Platform.LINUX = Platform(108)
 Platform.MAC_OS_X = Platform(111)
 Platform.WINDOWS = Platform(119)
+
+
+class ServerType(object):
+    """A Source server platform identifier
+
+    This class provides utilities for representing Source server types
+    as returned from a A2S_INFO request. Each server type is ultimately
+    represented by one of the following integers:
+
+    +-----+---------------+
+    | ID  | Server type   |
+    +=====+===============+
+    | 100 | Dedicated     |
+    +-----+---------------+
+    | 108 | Non-dedicated |
+    +-----+---------------+
+    | 112 | SourceTV      |
+    +-----+---------------+
+    """
+
+    def __init__(self, value):
+        """Initialise the server type identifier
+
+        The given ``value`` will be mapped to a numeric identifier. If the
+        value is already an integer it must then it must exist in the table
+        above else ValueError is returned.
+
+        If ``value`` is a one character long string then it's ordinal value
+        as given by ``ord()`` is used. Alternately the string can be either
+        of the following:
+            * Dedicated
+            * Non-Dedicated
+            * SourceTV
+        """
+        if isinstance(value, basestring):
+            if len(value) == 1:
+                value = ord(value)
+            else:
+                value = {
+                    "dedicated": 100,
+                    "non-dedicated": 108,
+                    "sourcetv": 112,
+                }.get(value.lower())
+                if value is None:
+                    raise ValueError("Couldn't convert string {!r} to valid "
+                                     "server type identifier".format(value))
+        if value not in {100, 108, 112}:
+            raise ValueError(
+                "Invalid server type identifier {!r}".format(value))
+        self.value = value
+
+    def __repr__(self):
+        return "<{self.__class__.__name__} " \
+               "{self.value} '{self}'>".format(self=self)
+
+    def __unicode__(self):
+        return {
+            100: "Dedicated",
+            108: "Non-Dedicated",
+            112: "SourceTV",
+        }[self.value]
+
+    def __str__(self):
+        return unicode(self).encode(sys.getdefaultencoding())
+
+    def __int__(self):
+        return self.value
+
+    def __eq__(self, other):
+        """Check for equality between two server types
+
+        If ``other`` is not a ServerType instance then an attempt is made to
+        convert it to one using same approach as __init__. This means server
+        types can be compared against integers and strings. For example:
+
+        ```
+        >>>Server(100) == "dedicated"
+        True
+        >>>Platform(108) == 108
+        True
+        >>>Platform(112) == "p"
+        True
+        ```
+        """
+        if not isinstance(other, ServerType):
+            other = ServerType(other)
+        return self.value == other.value
+
+
+ServerType.DEDICATED = ServerType(100)
+ServerType.NON_DEDICATED = ServerType(108)
+ServerType.SOURCETV = ServerType(112)

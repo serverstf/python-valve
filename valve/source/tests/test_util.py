@@ -133,3 +133,106 @@ class TestPlatform(object):
     ])
     def test_equality_string(self, platform, other):
         assert platform == other
+
+
+class TestServerType(object):
+
+    @pytest.mark.parametrize("identifier", [100, 108, 112])
+    def test_valid_numeric_identifer(self, identifier):
+        server_type = util.ServerType(identifier)
+        assert server_type.value == identifier
+
+    def test_invalid_numeric_identifier(self):
+        with pytest.raises(ValueError):
+            util.ServerType(42)
+
+    @pytest.mark.parametrize(("identifier", "expected"), [
+        ("d", 100),
+        ("l", 108),
+        ("p", 112),
+    ])
+    def test_valid_character_identifier(self, identifier, expected):
+        server_type = util.ServerType(identifier)
+        assert server_type.value == expected
+
+    def test_invalid_character_identifier(self):
+        with pytest.raises(ValueError):
+            util.ServerType("a")
+
+    @pytest.mark.parametrize(("identifier", "expected"), [
+        ("dedicated", 100),
+        ("Dedicated", 100),
+        ("DEDICATED", 100),
+        ("non-dedicated", 108),
+        ("Non-Dedicated", 108),
+        ("NON-DEDICATED", 108),
+        ("sourcetv", 112),
+        ("SourceTV", 112),
+        ("SOURCETV", 112),
+    ])
+    def test_valid_string_identifier(self, identifier, expected):
+        server_type = util.ServerType(identifier)
+        assert server_type.value == expected
+
+    def test_invalid_string_identifier(self):
+        with pytest.raises(ValueError):
+            util.ServerType("snowman")
+
+    def test_empty_string_identifier(self):
+        with pytest.raises(ValueError):
+            util.Platform("")
+
+    @pytest.mark.parametrize(("identifier", "string"), [
+        (100, "Dedicated"),
+        (108, "Non-Dedicated"),
+        (112, "SourceTV"),
+    ])
+    def test_to_unicode(self, identifier, string):
+        server_type = util.ServerType(identifier)
+        assert unicode(server_type) == string
+
+    @pytest.mark.parametrize(("identifier", "string"), [
+        (100, b"Dedicated"),
+        (108, b"Non-Dedicated"),
+        (112, b"SourceTV"),
+    ])
+    def test_to_bytestring(self, identifier, string):
+        server_type = util.ServerType(identifier)
+        assert bytes(server_type) == string
+
+    @pytest.mark.parametrize("identifier", [100, 108, 112])
+    def test_to_integer(self, identifier):
+        server_type = util.ServerType(identifier)
+        assert int(server_type) == identifier
+
+    @pytest.mark.parametrize(("server_type", "other"), [
+        (util.ServerType(100), util.ServerType(100)),
+        (util.ServerType(108), util.ServerType(108)),
+        (util.ServerType(112), util.ServerType(112)),
+    ])
+    def test_equality(self, server_type, other):
+        assert server_type == other
+
+    @pytest.mark.parametrize(("server_type", "other"), [
+        (util.ServerType(100), 100),
+        (util.ServerType(108), 108),
+        (util.ServerType(112), 112),
+    ])
+    def test_equality_integer(self, server_type, other):
+        assert server_type == other
+
+    @pytest.mark.parametrize(("server_type", "other"), [
+        (util.ServerType(100), "d"),
+        (util.ServerType(108), "l"),
+        (util.ServerType(112), "p"),
+    ])
+    def test_equality_character(self, server_type, other):
+        assert server_type == other
+
+    @pytest.mark.parametrize(("server_type", "other"), [
+        (util.ServerType(100), "Dedicated"),
+        (util.ServerType(108), "Non-Dedicated"),
+        (util.ServerType(112), "SourceTV"),
+    ])
+    def test_equality_string(self, server_type, other):
+        assert server_type == other

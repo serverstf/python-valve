@@ -167,6 +167,15 @@ class PlatformField(ByteField):
         return util.Platform(byte), remnant_buffer
 
 
+class ServerTypeField(ByteField):
+
+    @needs_buffer
+    def decode(self, buffer, values={}):
+        byte, remnant_buffer = super(ServerTypeField,
+                                     self).decode(buffer, values)
+        return util.ServerType(byte), remnant_buffer
+
+
 class MessageArrayField(MessageField):
     """
         Represents a nested message within another message that is
@@ -437,9 +446,8 @@ class InfoResponse(Message):
         ByteField("player_count"),
         ByteField("max_players"),
         ByteField("bot_count"),
-        ByteField("server_type"),  # ServerField
-        #ByteField("platform"),  # PlatformField
-        PlatformField("platform"),  # PlatformField
+        ServerTypeField("server_type"),
+        PlatformField("platform"),
         ByteField("password_protected"),  # BooleanField
         ByteField("vac_enabled"),  # BooleanField
         StringField("version")
