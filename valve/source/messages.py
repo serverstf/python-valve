@@ -7,6 +7,7 @@ from __future__ import (absolute_import,
 import struct
 
 from . import SPLIT, NO_SPLIT
+from . import util
 
 
 class BrokenMessageError(Exception):
@@ -155,6 +156,15 @@ class LongField(MessageField):
 
 class FloatField(MessageField):
     fmt = b"f"
+
+
+class PlatformField(ByteField):
+
+    @needs_buffer
+    def decode(self, buffer, values={}):
+        byte, remnant_buffer = super(PlatformField,
+                                     self).decode(buffer, values)
+        return util.Platform(byte), remnant_buffer
 
 
 class MessageArrayField(MessageField):
@@ -428,7 +438,8 @@ class InfoResponse(Message):
         ByteField("max_players"),
         ByteField("bot_count"),
         ByteField("server_type"),  # ServerField
-        ByteField("platform"),  # PlatformField
+        #ByteField("platform"),  # PlatformField
+        PlatformField("platform"),  # PlatformField
         ByteField("password_protected"),  # BooleanField
         ByteField("vac_enabled"),  # BooleanField
         StringField("version")
