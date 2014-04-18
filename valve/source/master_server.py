@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013 Oliver Ainsworth
+# Copyright (C) 2013-2014 Oliver Ainsworth
 
 
+from . import MASTER_SERVER_ADDR
 from . import messages
 from .server import BaseServerQuerier
 
