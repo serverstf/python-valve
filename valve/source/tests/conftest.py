@@ -43,6 +43,7 @@ def srcds_functional(**filter_):
 def pytest_addoption(parser):
     parser.addoption("--srcds-functional",
                      action="store_true",
+                     default=False,
                      dest="srcds_functional",
                      help="Enable A2S functional tests against 'real' servers")
     parser.addoption("--srcds-functional-limit",
