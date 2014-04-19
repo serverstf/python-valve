@@ -34,7 +34,7 @@ class MasterServerQuerier(BaseServerQuerier):
         a completely unfiltered set will still take a long time and be
         prone to timeouts.
 
-        See ``find`` for making filtered requests.
+        See :meth:`.find` for making filtered requests.
         """
         return self.find(region="all")
 
@@ -131,13 +131,13 @@ class MasterServerQuerier(BaseServerQuerier):
 
         The following region identification strings are supported:
 
-        +--------*------------------------------------------+
+        +---------+-----------------------------------------+
         | String  | Region(s)                               |
-        +=========|=========================================+
+        +=========+=========================================+
         | na-east | East North America                      |
-        +---------|-----------------------------------------+
+        +---------+-----------------------------------------+
         | na-west | West North America                      |
-        +---------|-----------------------------------------+
+        +---------+-----------------------------------------+
         | na      | East North American, West North America |
         +---------+-----------------------------------------+
         | sa      | South America                           |

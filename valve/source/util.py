@@ -24,7 +24,7 @@ class Platform(object):
     | 111 | Mac OS X |
     +-----+----------+
     | 119 | Windows  |
-    +----------------+
+    +-----+----------+
     """
 
     def __init__(self, value):
@@ -37,9 +37,10 @@ class Platform(object):
         If ``value`` is a one character long string then it's ordinal value
         as given by ``ord()`` is used. Alternately the string can be either
         of the following:
-            * Linux
-            * Mac OS X
-            * Windows
+
+        * Linux
+        * Mac OS X
+        * Windows
         """
         if isinstance(value, basestring):
             if len(value) == 1:
@@ -79,20 +80,25 @@ class Platform(object):
         """Check for equality between two platforms
 
         If ``other`` is not a Platform instance then an attempt is made to
-        convert it to one using same approach as __init__. This means platforms
-        can be compared against integers and strings. For example:
+        convert it to one using same approach as :meth:`__init__`. This means
+        platforms can be compared against integers and strings. For example:
 
-        ```
-        >>>Platform(108) == "linux"
-        True
-        >>>Platform(109) == 109
-        True
-        >>>Platform(119) == "w"
-        True
-        ```
+        .. code:: pycon
+
+            >>>Platform(108) == "linux"
+            True
+            >>>Platform(109) == 109
+            True
+            >>>Platform(119) == "w"
+            True
 
         Despite the fact there are two numerical identifers for Mac (109 and
         111) comparing either of them together will yield ``True``.
+
+        .. code:: pycon
+
+            >>>Platform(109) == Platform(111)
+            True
         """
         if not isinstance(other, Platform):
             other = Platform(other)
@@ -145,9 +151,10 @@ class ServerType(object):
         If ``value`` is a one character long string then it's ordinal value
         as given by ``ord()`` is used. Alternately the string can be either
         of the following:
-            * Dedicated
-            * Non-Dedicated
-            * SourceTV
+
+        * Dedicated
+        * Non-Dedicated
+        * SourceTV
         """
         if isinstance(value, basestring):
             if len(value) == 1:
@@ -187,17 +194,17 @@ class ServerType(object):
         """Check for equality between two server types
 
         If ``other`` is not a ServerType instance then an attempt is made to
-        convert it to one using same approach as __init__. This means server
-        types can be compared against integers and strings. For example:
+        convert it to one using same approach as :meth:`.__init__`. This means
+        server types can be compared against integers and strings. For example:
 
-        ```
-        >>>Server(100) == "dedicated"
-        True
-        >>>Platform(108) == 108
-        True
-        >>>Platform(112) == "p"
-        True
-        ```
+        .. code:: pycon
+
+            >>>Server(100) == "dedicated"
+            True
+            >>>Platform(108) == 108
+            True
+            >>>Platform(112) == "p"
+            True
         """
         if not isinstance(other, ServerType):
             other = ServerType(other)

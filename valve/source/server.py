@@ -35,6 +35,10 @@ class BaseServerQuerier(object):
 
 
 class ServerQuerier(BaseServerQuerier):
+    """Implements the A2S Source server query protocol
+
+    https://developer.valvesoftware.com/wiki/Server_queries
+    """
 
     def request(self, request):
         self.socket.sendto(
@@ -72,11 +76,11 @@ class ServerQuerier(BaseServerQuerier):
         return response.payload
 
     def ping(self):
-        """
-            Pings the server returning the latency in milliseconds. High
-            probability that this straight up won't work as A2A_PING
-            is seemingly deprecated. If it is indeed unavailable,
-            NoResponseError will be raised.
+        """Ping the server, returning the latency in milliseconds
+
+        High probability that this straight up won't work as A2A_PING is
+        seemingly deprecated. If it is indeed unavailable, NoResponseError
+        will be raised.
         """
 
         t_send = time.time()
@@ -86,10 +90,66 @@ class ServerQuerier(BaseServerQuerier):
         return (time.time() - t_send) / 1000.0
 
     def get_info(self):
-        """
-            Retrieves information about the server including,
-            but not limited to: its name, the map currently being
-            played, and the number of players.
+        """Retreive information about the server state
+
+        This returns the response from the server which implements
+        ``__getitem__`` for accessing response fields. For example:
+
+        .. code:: python
+
+            server = ServerQuerier(...)
+            print server.get_info()["server_name"]
+
+        The following fields are available on the response:
+
+        +--------------------+------------------------------------------------+
+        | Field              | Description                                    |
+        +====================+================================================+
+        | response_type      | Always ``0x49``                                |
+        +--------------------+------------------------------------------------+
+        | server_name        | The name of the server                         |
+        +--------------------+------------------------------------------------+
+        | map                | The name of the map being ran by the server    |
+        +--------------------+------------------------------------------------+
+        | folder             | The *gamedir* if the modification being ran by |
+        |                    | the server. E.g. ``tf``, ``cstrike``, ``csgo``.|
+        +--------------------+------------------------------------------------+
+        | game               | A string identifying the game being ran by the |
+        |                    | server                                         |
+        +--------------------+------------------------------------------------+
+        | app_id             | The numeric application ID of the game ran by  |
+        |                    | the server. Note that this is the app ID of the|
+        |                    | client, not the server. For example, for Team  |
+        |                    | Fortress 2 ``440`` is returned instead of      |
+        |                    | ``232250`` which is the ID of the server       |
+        |                    | software.                                      |
+        +--------------------+------------------------------------------------+
+        | player_count       | Number of players currently connected          |
+        +--------------------+------------------------------------------------+
+        | max_players        | The number of player slots available. Note that|
+        |                    | ``player_count`` may exceed this value under   |
+        |                    | certain circumstances.                         |
+        +--------------------+------------------------------------------------+
+        | bot_count          | The number of AI players present               |
+        +--------------------+------------------------------------------------+
+        | server_type        | A :class:`..util.ServerType` instance          |
+        |                    | representing the type of server. E.g.          |
+        |                    | Dedicated, non-dedicated or Source TV relay.   |
+        +--------------------+------------------------------------------------+
+        | platform           | A :class`..util.Platform` instances            |
+        |                    | represneting the platform the server is running|
+        |                    | on. E.g. Windows, Linux or Mac OS X.           |
+        +--------------------+------------------------------------------------+
+        | password_protected | Whether or not a password is required to       |
+        |                    | connect to the server.                         |
+        +--------------------+------------------------------------------------+
+        | vac_enabled        | Whether or not Valve anti-cheat (VAC) is       |
+        |                    | enabled                                        |
+        +--------------------+------------------------------------------------+
+        | version            | The version string of the server software      |
+        +--------------------+------------------------------------------------+
+
+        Currently the *extra data field* (EDF) is not supported.
         """
 
         self.request(messages.InfoRequest())
@@ -107,10 +167,38 @@ class ServerQuerier(BaseServerQuerier):
         return messages.GetChallengeResponse.decode(self.get_response())
 
     def get_players(self):
-        """
-            Implements A2S_PLAYER. Retreives a list of current players
-            on the server as well as their score and time-connected
-            (in seconds).
+        """Retrive a list of all players connected to the server
+
+        The following fields are available on the response:
+
+        +--------------------+------------------------------------------------+
+        | Field              | Description                                    |
+        +====================+================================================+
+        | response_type      | Always ``0x44``                                |
+        +--------------------+------------------------------------------------+
+        | player_count       | The number of players listed                   |
+        +--------------------+------------------------------------------------+
+        | players            | A list of player entries                       |
+        +--------------------+------------------------------------------------+
+
+        The ``players`` field is a list that contains ``player_count`` number
+        of :class:`..messages.PlayerEntry` instances which have the same
+        interface as the top-level response object that is returned.
+
+        The following fields are available on each player entry:
+
+        +--------------------+------------------------------------------------+
+        | Field              | Description                                    |
+        +====================+================================================+
+        | name               | The name of the player                         |
+        +--------------------+------------------------------------------------+
+        | score              | Player's score at the time of the request.     |
+        |                    | What this relates to is dependant on the       |
+        |                    | gamemode of the server.                        |
+        +--------------------+------------------------------------------------+
+        | duration           | Number of seconds the player has been          |
+        |                    | connected as a float                           |
+        +--------------------+------------------------------------------------+
         """
 
         # TF2 and L4D2's A2S_SERVERQUERY_GETCHALLENGE doesn't work so
@@ -122,14 +210,26 @@ class ServerQuerier(BaseServerQuerier):
         return messages.PlayersResponse.decode(self.get_response())
 
     def get_rules(self):
-        """
-            Implementes A2S_RULES. Retrieves the current server
-            configuration as expressed in terms of a series of
-            name-value pairs.
+        """Retreive the server's game mode configuration
 
-            There's a fair chance a NotImplentedError exception will be
-            raised as fragmented message handling is not implemented
-            and A2S_RULES responses are generally quite long.
+        This method allows you capture a subset of a server's console
+        variables (often referred to as 'cvars',) specifically those which
+        have the ``FCVAR_NOTIFY`` flag set on them. These cvars are used to
+        indicate game mode's configuration, such as the gravity setting for
+        the map or whether friendly fire is enabled or not.
+
+        The following fields are available on the response:
+
+        +--------------------+------------------------------------------------+
+        | Field              | Description                                    |
+        +====================+================================================+
+        | response_type      | Always ``0x56``                                |
+        +--------------------+------------------------------------------------+
+        | rule_count         | The number of rules                            |
+        +--------------------+------------------------------------------------+
+        | rules              | A dictionary mapping rule names to their       |
+        |                    | corresponding string value                     |
+        +--------------------+------------------------------------------------+
         """
 
         self.request(messages.RulesRequest(challenge=-1))
