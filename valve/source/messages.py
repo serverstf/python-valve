@@ -4,6 +4,7 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
+import collections
 import struct
 
 from . import SPLIT, NO_SPLIT
@@ -364,7 +365,7 @@ class MessageDictField(MessageArrayField):
         return entries_dict, buffer
 
 
-class Message(object):
+class Message(collections.Mapping):
 
     fields = ()
 
@@ -384,6 +385,15 @@ class Message(object):
 
     def __contains__(self, key):
         return key in self.values
+
+    def __len__(self):
+        return len(self.values)
+
+    def __iter__(self):
+        return iter(self.values)
+
+    def get(self, key, default):
+        return self.values.get(key, default)
 
     def encode(self, **field_values):
         values = dict(self.values, **field_values)
