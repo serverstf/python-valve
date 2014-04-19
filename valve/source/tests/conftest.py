@@ -8,6 +8,7 @@ import pytest
 
 from .. import REGION_EUROPE
 from .. import master_server
+from ..server import NoResponseError
 
 
 def srcds_functional(**filter_):
@@ -73,24 +74,18 @@ def pytest_generate_tests(metafunc):
         if "address" not in metafunc.fixturenames:
             raise Exception("You cannot use the srcds_functional decorator "
                             "without requesting an 'address' fixture")
-        # Build filter string
-        filter_ = "\\".join("{0}\{1}".format(*kv) for kv
-                            in metafunc.function._srcds_filter.iteritems())
-        if filter_:
-            filter_ = "\\" + filter_
         msq = master_server.MasterServerQuerier()
         server_addresses = []
         address_limit = metafunc.config.getoption("srcds_functional_limit")
-        for region in [REGION_EUROPE]:
-            try:
-                for address in msq.get_region(region,
-                                              filter=filter_):
-                    if address_limit:
-                        if len(server_addresses) > address_limit:
-                            break
-                    server_addresses.append(address)
-            except Exception:
-                pass
+        try:
+            for address in msq.find(region="eu",
+                                    **metafunc.function._srcds_filter):
+                if address_limit:
+                    if len(server_addresses) >= address_limit:
+                        break
+                server_addresses.append(address)
+        except NoResponseError:
+            pass
         metafunc.parametrize("address", server_addresses)
 
 

@@ -203,6 +203,10 @@ class ServerType(object):
             other = ServerType(other)
         return self.value == other.value
 
+    @property
+    def char(self):
+        return chr(self.value)
+
 
 ServerType.DEDICATED = ServerType(100)
 ServerType.NON_DEDICATED = ServerType(108)
