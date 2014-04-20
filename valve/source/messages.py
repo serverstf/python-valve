@@ -468,13 +468,6 @@ class InfoResponse(Message):
     )
 
 
-class GetChallengeRequest(Message):
-
-    fields = (
-        ByteField("request_type", True, 0x57),
-    )
-
-
 class GetChallengeResponse(Message):
 
     fields = (

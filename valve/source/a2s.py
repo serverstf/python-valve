@@ -156,17 +156,6 @@ class ServerQuerier(BaseServerQuerier):
         self.request(messages.InfoRequest())
         return messages.InfoResponse.decode(self.get_response())
 
-    def get_challenge(self):
-        """
-            Retrieves the 'challenge number' needed when making
-            further A2S_PLAYER and A2S_RULES requests. However it is
-            pretty much completely broken and is only provided for
-            the sake of completeness.
-        """
-
-        self.request(messages.GetChallengeRequest())
-        return messages.GetChallengeResponse.decode(self.get_response())
-
     def get_players(self):
         """Retrive a list of all players connected to the server
 
