@@ -7,8 +7,11 @@ from __future__ import (absolute_import,
 import collections
 import struct
 
-from . import SPLIT, NO_SPLIT
 from . import util
+
+
+NO_SPLIT = -1
+SPLIT = -2
 
 
 class BrokenMessageError(Exception):

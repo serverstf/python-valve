@@ -1,20 +1,25 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2013-2014 Oliver Ainsworth
 
+from __future__ import (absolute_import,
+                        unicode_literals, print_function, division)
 
-from . import (MASTER_SERVER_ADDR,
-               REGION_US_EAST_COAST,
-               REGION_US_WEST_COAST,
-               REGION_SOUTH_AMERICA,
-               REGION_EUROPE,
-               REGION_ASIA,
-               REGION_AUSTRALIA,
-               REGION_MIDDLE_EAST,
-               REGION_AFRICA,
-               REGION_REST)
 from . import messages
 from .a2s import BaseServerQuerier
 from .util import ServerType
+
+
+REGION_US_EAST_COAST = 0x00
+REGION_US_WEST_COAST = 0x01
+REGION_SOUTH_AMERICA = 0x02
+REGION_EUROPE = 0x03
+REGION_ASIA = 0x04
+REGION_AUSTRALIA = 0x05
+REGION_MIDDLE_EAST = 0x06
+REGION_AFRICA = 0x07
+REGION_REST = 0xFF
+
+MASTER_SERVER_ADDR = ("hl2master.steampowered.com", 27011)
 
 
 class MasterServerQuerier(BaseServerQuerier):
@@ -155,7 +160,7 @@ class MasterServerQuerier(BaseServerQuerier):
         | all     | All of the above                        |
         +---------+-----------------------------------------+
 
-        .. note:
+        .. note::
             "``rest``" corresponds to all servers that don't fit with any
             other region. What causes a server to be placed in this region
             by the master server isn't entirely clear.

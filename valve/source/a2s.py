@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013 Oliver Ainsworth
+# Copyright (C) 2013-2014 Oliver Ainsworth
+
+from __future__ import (absolute_import,
+                        unicode_literals, print_function, division)
 
 import socket
 import select
 import time
 
-from . import SPLIT, NO_SPLIT, messages
+from . import messages
 
 
 class NoResponseError(Exception):
@@ -41,10 +44,8 @@ class ServerQuerier(BaseServerQuerier):
     """
 
     def request(self, request):
-        self.socket.sendto(
-            messages.Header(split=NO_SPLIT).encode() + request.encode(),
-            (self.host, self.port)
-        )
+        header = messages.Header(split=messages.NO_SPLIT).encode()
+        self.socket.sendto(header + request.encode(), (self.host, self.port))
 
     def get_response(self):
 
@@ -60,7 +61,7 @@ class ServerQuerier(BaseServerQuerier):
         # or that the warning is no longer valid.
 
         response = messages.Header().decode(data)
-        if response["split"] == SPLIT:
+        if response["split"] == messages.SPLIT:
             fragments = {}
             fragment = messages.Fragment.decode(response.payload)
             if fragment.is_compressed:
