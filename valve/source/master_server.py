@@ -5,8 +5,8 @@ from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
 from . import messages
+from . import util
 from .a2s import BaseServerQuerier
-from .util import ServerType
 
 
 REGION_US_EAST_COAST = 0x00
@@ -230,12 +230,15 @@ class MasterServerQuerier(BaseServerQuerier):
                        "full", "proxy", "noplayers", "white"}:
                 value = int(bool(value))
             elif key in {"gametype", "gamedata", "gamedataor"}:
+                value = [unicode(elt) for elt in value if unicode(elt)]
+                if not value:
+                    continue
                 value = ",".join(value)
             elif key == "napp":
                 value = int(value)
             elif key == "type":
-                if not isinstance(value, ServerType):
-                    value = ServerType(value).char
+                if not isinstance(value, util.ServerType):
+                    value = util.ServerType(value).char
                 else:
                     value = value.char
             filter_.append(key)
