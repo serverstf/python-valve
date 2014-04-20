@@ -6,7 +6,7 @@ from __future__ import (absolute_import,
 
 import pytest
 
-from .. import util
+from valve.source import util
 
 
 class TestPlatform(object):

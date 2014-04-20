@@ -13,7 +13,7 @@ from . import (MASTER_SERVER_ADDR,
                REGION_AFRICA,
                REGION_REST)
 from . import messages
-from .server import BaseServerQuerier
+from .a2s import BaseServerQuerier
 from .util import ServerType
 
 

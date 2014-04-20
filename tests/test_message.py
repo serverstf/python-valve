@@ -9,7 +9,7 @@ import inspect
 from mock import Mock
 import pytest
 
-from .. import messages
+from valve.source import messages
 
 
 class TestUseDefault(object):
