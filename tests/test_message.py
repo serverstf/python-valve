@@ -433,9 +433,16 @@ class TestMessage(object):
         with pytest.raises(KeyError):
             message["key"]
 
-    def test_contains(self):
-        message = messages.Message(key=":o")
-        assert "key" in message
+    def test_len(self):
+        message = messages.Message(key1=None, key2=None, key3=None)
+        assert len(message) == 3
+
+    def test_iter(self):
+        keys = {"key1": None, "key2": None, "key3": None}
+        message = messages.Message(**keys)
+        for key in message:
+            keys.pop(key)
+        assert not keys
 
     def test_encode_simple(self):
         class Message(messages.Message):

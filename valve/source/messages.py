@@ -386,17 +386,11 @@ class Message(collections.Mapping):
     def __delitem__(self, key):
         del self.values[key]
 
-    def __contains__(self, key):
-        return key in self.values
-
     def __len__(self):
         return len(self.values)
 
     def __iter__(self):
         return iter(self.values)
-
-    def get(self, key, default):
-        return self.values.get(key, default)
 
     def encode(self, **field_values):
         values = dict(self.values, **field_values)
