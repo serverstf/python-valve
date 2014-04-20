@@ -531,21 +531,6 @@ class RulesResponse(Message):
     )
 
 
-class PingRequest(Message):
-
-    fields = (
-        ByteField("request_type", True, 0x69),
-    )
-
-
-class PingResponse(Message):
-
-    fields = (
-        ByteField("response_type", validators=[lambda x: x == 0x6a]),
-        StringField("payload", validators=[lambda x: x == "00000000000000"]),
-    )
-
-
 # For Master Server
 class MSAddressEntryPortField(MessageField):
     fmt = b"!H"

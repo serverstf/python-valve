@@ -77,17 +77,16 @@ class ServerQuerier(BaseServerQuerier):
         return response.payload
 
     def ping(self):
-        """Ping the server, returning the latency in milliseconds
+        """Ping the server, returning the round-trip latency in milliseconds
 
-        High probability that this straight up won't work as A2A_PING is
-        seemingly deprecated. If it is indeed unavailable, NoResponseError
-        will be raised.
+        The A2A_PING request is deprecated so this actually sends a A2S_INFO
+        request and times that. The time difference between the two should
+        be negligble.
         """
 
         t_send = time.time()
-        self.request(messages.PingRequest())
-        messages.PingResponse.decode(self.get_response())
-
+        self.request(messages.InfoRequest())
+        messages.InfoResponse.decode(self.get_response())
         return (time.time() - t_send) / 1000.0
 
     def get_info(self):

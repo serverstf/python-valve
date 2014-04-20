@@ -12,19 +12,39 @@ import valve.source.a2s
 
 
 @pytest.srcds_functional(gamedir="tf")
-def test_tf2(address):
+def test_tf2_ping(address):
+    try:
+        a2s = valve.source.a2s.ServerQuerier(address)
+        latency = a2s.ping()
+    except valve.source.a2s.NoResponseError:
+        pytest.skip("Timedout waiting for response")
+    assert latency > 0
+
+
+@pytest.srcds_functional(gamedir="tf")
+def test_tf2_info(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         info = a2s.get_info()
     except valve.source.a2s.NoResponseError:
-        return
+        pytest.skip("Timedout waiting for response")
     assert info["app_id"] == 440
     assert info["folder"] == "tf"
     assert isinstance(info["folder"], unicode)
 
 
 @pytest.srcds_functional(gamedir="cstrike")
-def test_css(address):
+def test_css_ping(address):
+    try:
+        a2s = valve.source.a2s.ServerQuerier(address)
+        latency = a2s.ping()
+    except valve.source.a2s.NoResponseError:
+        pytest.skip("Timedout waiting for response")
+    assert latency > 0
+
+
+@pytest.srcds_functional(gamedir="cstrike")
+def test_css_info(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         info = a2s.get_info()
@@ -36,7 +56,17 @@ def test_css(address):
 
 
 @pytest.srcds_functional(gamedir="csgo")
-def test_csgo(address):
+def test_csgo_ping(address):
+    try:
+        a2s = valve.source.a2s.ServerQuerier(address)
+        latency = a2s.ping()
+    except valve.source.a2s.NoResponseError:
+        pytest.skip("Timedout waiting for response")
+    assert latency > 0
+
+
+@pytest.srcds_functional(gamedir="csgo")
+def test_csgo_info(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         info = a2s.get_info()
@@ -48,7 +78,17 @@ def test_csgo(address):
 
 
 @pytest.srcds_functional(gamedir="dota")
-def test_dota2(address):
+def test_dota2_ping(address):
+    try:
+        a2s = valve.source.a2s.ServerQuerier(address)
+        latency = a2s.ping()
+    except valve.source.a2s.NoResponseError:
+        pytest.skip("Timedout waiting for response")
+    assert latency > 0
+
+
+@pytest.srcds_functional(gamedir="dota")
+def test_dota2_info(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         info = a2s.get_info()
@@ -60,7 +100,17 @@ def test_dota2(address):
 
 
 @pytest.srcds_functional(gamedir="left4dead")
-def test_l4d(address):
+def test_l4d_ping(address):
+    try:
+        a2s = valve.source.a2s.ServerQuerier(address)
+        latency = a2s.ping()
+    except valve.source.a2s.NoResponseError:
+        pytest.skip("Timedout waiting for response")
+    assert latency > 0
+
+
+@pytest.srcds_functional(gamedir="left4dead")
+def test_l4d_info(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         info = a2s.get_info()
@@ -72,7 +122,17 @@ def test_l4d(address):
 
 
 @pytest.srcds_functional(gamedir="left4dead2")
-def test_l4d2(address):
+def test_l4d2_ping(address):
+    try:
+        a2s = valve.source.a2s.ServerQuerier(address)
+        latency = a2s.ping()
+    except valve.source.a2s.NoResponseError:
+        pytest.skip("Timedout waiting for response")
+    assert latency > 0
+
+
+@pytest.srcds_functional(gamedir="left4dead2")
+def test_l4d2_info(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         info = a2s.get_info()
