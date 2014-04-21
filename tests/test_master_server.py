@@ -8,6 +8,7 @@ import mock
 import pytest
 
 from valve.source import master_server
+from valve.source import messages
 from valve.source import util
 
 
@@ -235,3 +236,93 @@ class TestFind(object):
         list(msq.find(napp=240, gametype=["tag", "tag2"]))
         assert _query.called
         assert _query.call_args[0][1] == r"\gametype\tag,tag2\napp\240"
+
+
+class TestQuery(object):
+
+    @pytest.fixture
+    def msq(self, monkeypatch):
+        monkeypatch.setattr(
+            master_server.MasterServerQuerier, "request", mock.Mock())
+        monkeypatch.setattr(
+            master_server.MasterServerQuerier, "get_response", mock.Mock())
+        return master_server.MasterServerQuerier()
+
+    @pytest.fixture
+    def request_(self, monkeypatch):
+        monkeypatch.setattr(messages, "MasterServerRequest", mock.Mock())
+        return messages.MasterServerRequest
+
+    @pytest.fixture
+    def response(self, monkeypatch):
+        responses = []
+
+        @classmethod
+        def mock_decode(cls, raw_response):
+            return responses.pop(0)
+
+        monkeypatch.setattr(
+            messages.MasterServerResponse,
+            "decode",
+            mock_decode)
+
+        def add_response(*addresses):
+            for batch in addresses:
+                fields = {"addresses": [],
+                          "start_port": b"26122",
+                          "start_host": "255.255.255.255"}
+                for address in batch:
+                    fields["addresses"].append(
+                        messages.MSAddressEntry(host=address[0],
+                                                port=address[1]))
+                responses.append(messages.MasterServerResponse(**fields))
+
+        return add_response
+
+    def test_initial_request(self, msq, request_, response):
+        response([("0.0.0.0", 0)])
+        list(msq._query(master_server.REGION_REST, ""))
+        assert request_.called
+        assert request_.call_args[1] == {
+            "region": master_server.REGION_REST,
+            "address": "0.0.0.0:0",
+            "filter": "",
+        }
+
+    def test_single_batch(self, msq, request_, response):
+        response([("8.8.8.8", 27015), ("0.0.0.0", 0)])
+        addresses = list(msq._query(master_server.REGION_REST, r"\full\1"))
+        assert request_.called
+        assert request_.call_args[1] == {
+            "region": master_server.REGION_REST,
+            "address": "0.0.0.0:0",
+            "filter": r"\full\1",
+        }
+        assert addresses == [("8.8.8.8", 27015)]
+
+    def test_multiple_batches(self, msq, request_, response):
+        response(
+            [
+                ("8.8.8.8", 27015),
+            ],
+            [
+                ("8.8.4.4", 27015),
+                ("0.0.0.0", 0),
+            ],
+        )
+        addresses = list(msq._query(master_server.REGION_REST, r"\empty\1"))
+        assert request_.call_count == 2
+        assert request_.call_args_list[0][1] == {
+            "region": master_server.REGION_REST,
+            "address": "0.0.0.0:0",
+            "filter": r"\empty\1",
+        }
+        assert request_.call_args_list[1][1] == {
+            "region": master_server.REGION_REST,
+            "address": "8.8.8.8:27015",
+            "filter": r"\empty\1",
+        }
+        assert addresses == [
+            ("8.8.8.8", 27015),
+            ("8.8.4.4", 27015),
+        ]

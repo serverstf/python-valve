@@ -4,9 +4,9 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
+from . import a2s
 from . import messages
 from . import util
-from .a2s import BaseServerQuerier
 
 
 REGION_US_EAST_COAST = 0x00
@@ -22,14 +22,14 @@ REGION_REST = 0xFF
 MASTER_SERVER_ADDR = ("hl2master.steampowered.com", 27011)
 
 
-class MasterServerQuerier(BaseServerQuerier):
+class MasterServerQuerier(a2s.BaseServerQuerier):
     """Implements the Source master server query protocol
 
     https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol
     """
 
     def __init__(self, address=MASTER_SERVER_ADDR, timeout=10.0):
-        BaseServerQuerier.__init__(self, address, timeout)
+        super(MasterServerQuerier, self).__init__(address, timeout)
 
     def __iter__(self):
         """An unfitlered iterator of all Source servers
