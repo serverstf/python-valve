@@ -6,6 +6,8 @@ from __future__ import (absolute_import,
 
 import sys
 
+import six
+
 
 class Platform(object):
     """A Source server platform identifier
@@ -42,7 +44,7 @@ class Platform(object):
         * Mac OS X
         * Windows
         """
-        if isinstance(value, basestring):
+        if isinstance(value, six.text_type):
             if len(value) == 1:
                 value = ord(value)
             else:
@@ -156,7 +158,7 @@ class ServerType(object):
         * Non-Dedicated
         * SourceTV
         """
-        if isinstance(value, basestring):
+        if isinstance(value, six.text_type):
             if len(value) == 1:
                 value = ord(value)
             else:

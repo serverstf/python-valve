@@ -4,6 +4,8 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
+import six
+
 from . import a2s
 from . import messages
 from . import util
@@ -82,7 +84,7 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
 
         Returns a list of numeric region identifiers.
         """
-        if isinstance(region, basestring):
+        if isinstance(region, six.text_type):
             try:
                 regions = {
                     "na-east": [REGION_US_EAST_COAST],
@@ -218,19 +220,20 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
         |            | Only applicable to L4D2 servers.                      |
         +------------+-------------------------------------------------------+
         """
-        if isinstance(region, (int, basestring)):
+        if isinstance(region, (int, six.text_type)):
             regions = self._map_region(region)
         else:
             regions = []
             for reg in region:
                 regions.extend(self._map_region(reg))
         filter_ = []
-        for key, value in filters.iteritems():
+        for key, value in six.iteritems(filters):
             if key in {"secure", "linux", "empty",
                        "full", "proxy", "noplayers", "white"}:
                 value = int(bool(value))
             elif key in {"gametype", "gamedata", "gamedataor"}:
-                value = [unicode(elt) for elt in value if unicode(elt)]
+                value = [six.text_type(elt)
+                         for elt in value if six.text_type(elt)]
                 if not value:
                     continue
                 value = ",".join(value)
@@ -242,7 +245,7 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
                 else:
                     value = value.char
             filter_.append(key)
-            filter_.append(unicode(value))
+            filter_.append(six.text_type(value))
         filter_string = "\\".join(filter_)
         if filter_string:
             filter_string = "\\" + filter_string
