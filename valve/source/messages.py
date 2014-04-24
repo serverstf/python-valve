@@ -7,6 +7,8 @@ from __future__ import (absolute_import,
 import collections
 import struct
 
+import six
+
 from . import util
 
 
@@ -294,7 +296,10 @@ class MessageArrayField(MessageField):
             f.minimum = values[name]
             return values[name]
 
-        field.func_defaults = (field,)
+        if six.PY3:
+            field.__defaults__ = (field,)
+        else:
+            field.func_defaults = (field,)
         return field
 
     @staticmethod
@@ -315,7 +320,7 @@ class MessageArrayField(MessageField):
 
         def all_(values={}):
             i[0] = i[0] + 1
-            return i
+            return i[0]
 
         all_.minimum = -1
         return all_
@@ -330,7 +335,7 @@ class MessageArrayField(MessageField):
 
         def at_least(values={}):
             i[0] = i[0] + 1
-            return i
+            return i[0]
 
         at_least.minimum = minimum
         return at_least
@@ -538,7 +543,7 @@ class MSAddressEntryIPField(MessageField):
             raise BufferExhaustedError
         field_data = buffer[:4]
         left_overs = buffer[4:]
-        return (".".join(unicode(b) for b in
+        return (".".join(six.text_type(b) for b in
                 struct.unpack(b"<BBBB", field_data)), left_overs)
 
 

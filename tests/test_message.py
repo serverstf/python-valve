@@ -8,6 +8,7 @@ import inspect
 
 from mock import Mock
 import pytest
+import six
 
 from valve.source import messages
 
@@ -96,7 +97,7 @@ class TestMessageField(object):
 
     def test_explicit_endian(self):
         for fmt in "!<>=@":
-            TestField = type(b"TestField",
+            TestField = type("TestField",
                              (messages.MessageField,), {"fmt": fmt})
             assert TestField("").format.startswith(fmt)
 
@@ -184,7 +185,7 @@ class TestStringField(object):
         field = messages.StringField("")
         encoded = b"\x48\x65\x6C\x6C\x6F\x00\x02\x01\x00"
         decoded, remnants = field.decode(encoded)
-        assert isinstance(decoded, unicode)
+        assert isinstance(decoded, six.text_type)
         assert decoded == "Hello"
         assert isinstance(remnants, bytes)
         assert remnants == b"\x02\x01\x00"
@@ -409,11 +410,11 @@ class TestMessageDictField(object):
                                           messages.ByteField("key"),
                                           messages.ByteField("value"), 5)
         encoded = b""
-        for key in xrange(5):
-            encoded += chr(key) + b"\xFF"
+        for key in six.moves.range(5):
+            encoded += bytes([key]) + b"\xFF"
         values, remnants = ddict.decode(encoded)
         for key in values.keys():
-            assert key in range(5)
+            assert key in set(six.moves.range(5))
             assert values[key] == 255
 
 
@@ -510,7 +511,7 @@ class TestMSAddressEntry(object):
     def test_decode_ip(self):
         ip, remnants = messages.MSAddressEntryIPField("").decode(
             b"\x00\x01\x02\x03\xFF\xFF")
-        assert isinstance(ip, unicode)
+        assert isinstance(ip, six.text_type)
         assert ip == "0.1.2.3"
         assert isinstance(remnants, bytes)
         assert remnants == b"\xFF\xFF"
