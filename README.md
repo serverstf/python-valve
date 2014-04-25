@@ -55,10 +55,8 @@ http://python-valve.readthedocs.org/.
 
 Python 3
 --------
-Currently `python-valve` only supports Python 2.7. However, it is written in a
-manner which should facilitate a relatively pain-free port to Python 3.
-The wire protocol implementations take great care when it comes to handling
-Unicode and bytestrings. Also, currently `requests` is `python-valve`'s
-only dependancy which already supports Python 3.
-
-Supporting Python 3 is something I'd like to add sooner rather than later.
+Currently there is partial support for Python 3 -- 3.4 to be specific.
+Everything in `valve.source` will/should work in both Python 2.7 and
+Python 3.4 but currently that is the only section that has been ported. The
+rest will be updated in due course but those other components need reworking
+anyway.
