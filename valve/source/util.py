@@ -72,8 +72,15 @@ class Platform(object):
             119: "Windows",
         }[self.value]
 
-    def __str__(self):
-        return unicode(self).encode(sys.getdefaultencoding())
+    if six.PY3:
+        def __str__(self):
+            return self.__unicode__()
+
+        def __bytes__(self):
+            return self.__unicode__().encode(sys.getdefaultencoding())
+    else:
+        def __str__(self):
+            return self.__unicode__().encode(sys.getdefaultencoding())
 
     def __int__(self):
         return self.value
@@ -186,8 +193,15 @@ class ServerType(object):
             112: "SourceTV",
         }[self.value]
 
-    def __str__(self):
-        return unicode(self).encode(sys.getdefaultencoding())
+    if six.PY3:
+        def __str__(self):
+            return self.__unicode__()
+
+        def __bytes__(self):
+            return self.__unicode__().encode(sys.getdefaultencoding())
+    else:
+        def __str__(self):
+            return self.__unicode__().encode(sys.getdefaultencoding())
 
     def __int__(self):
         return self.value

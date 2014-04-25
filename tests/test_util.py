@@ -5,6 +5,7 @@ from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
 import pytest
+import six
 
 from valve.source import util
 
@@ -65,7 +66,7 @@ class TestPlatform(object):
     ])
     def test_to_unicode(self, identifier, string):
         platform = util.Platform(identifier)
-        assert unicode(platform) == string
+        assert six.text_type(platform) == string
 
     @pytest.mark.parametrize(("identifier", "string"), [
         (108, b"Linux"),
@@ -189,7 +190,7 @@ class TestServerType(object):
     ])
     def test_to_unicode(self, identifier, string):
         server_type = util.ServerType(identifier)
-        assert unicode(server_type) == string
+        assert six.text_type(server_type) == string
 
     @pytest.mark.parametrize(("identifier", "string"), [
         (100, b"Dedicated"),
