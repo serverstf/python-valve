@@ -63,11 +63,14 @@ class MessageField(object):
                 value they're passed is invalid
         """
 
-        if self.__class__.fmt is not None:
-            if self.__class__.fmt[0] not in b"@=<>!":
-                self.format = b"<" + self.__class__.fmt
+        if self.fmt is not None:
+            if self.fmt[0] not in "@=<>!":
+                self.format = "<" + self.fmt
             else:
-                self.format = self.__class__.fmt
+                self.format = self.fmt
+            if six.PY2:
+                # Struct only accepts bytes
+                self.format = self.format.encode("ascii")
         self.name = name
         self.optional = optional
         self._value = default_value
@@ -131,11 +134,11 @@ class MessageField(object):
 
 
 class ByteField(MessageField):
-    fmt = b"B"
+    fmt = "B"
 
 
 class StringField(MessageField):
-    fmt = b"s"
+    fmt = "s"
 
     @use_default
     def encode(self, value, values={}):
@@ -153,15 +156,15 @@ class StringField(MessageField):
 
 
 class ShortField(MessageField):
-    fmt = b"h"
+    fmt = "h"
 
 
 class LongField(MessageField):
-    fmt = b"l"
+    fmt = "l"
 
 
 class FloatField(MessageField):
-    fmt = b"f"
+    fmt = "f"
 
 
 class PlatformField(ByteField):
@@ -532,7 +535,7 @@ class RulesResponse(Message):
 
 # For Master Server
 class MSAddressEntryPortField(MessageField):
-    fmt = b"!H"
+    fmt = "!H"
 
 
 class MSAddressEntryIPField(MessageField):
