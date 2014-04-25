@@ -358,7 +358,7 @@ class MessageDictField(MessageArrayField):
             count is the same as MessageArrayField.
         """
 
-        element = type("KeyValueField",
+        element = type("KeyValueField" if six.PY3 else b"KeyValueField",
                        (Message,), {"fields": (key_field, value_field)})
         self.key_field = key_field
         self.value_field = value_field

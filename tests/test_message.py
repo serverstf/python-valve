@@ -97,7 +97,7 @@ class TestMessageField(object):
 
     def test_explicit_endian(self):
         for fmt in "!<>=@":
-            TestField = type("TestField",
+            TestField = type("TestField" if six.PY3 else b"TestField",
                              (messages.MessageField,), {"fmt": fmt})
             assert TestField("").format.startswith(fmt)
 
@@ -411,7 +411,7 @@ class TestMessageDictField(object):
                                           messages.ByteField("value"), 5)
         encoded = b""
         for key in six.moves.range(5):
-            encoded += bytes([key]) + b"\xFF"
+            encoded += six.int2byte(key) + b"\xFF"
         values, remnants = ddict.decode(encoded)
         for key in values.keys():
             assert key in set(six.moves.range(5))
