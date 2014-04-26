@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013 Oliver Ainsworth
+# Copyright (C) 2013-2014 Oliver Ainsworth
 
 from distutils.core import setup
 
 setup(
-    name="Steam",
+    name="python-valve",
     version="0.0",
     description="Small library implementing various parts of Steam's public interfaces",
     author="Oliver Ainsworth",
-    author_email="oliver.ainsworth95@googlemail.com",
-    packages=["steam"],
-    license="MIT License"
-    )
+    author_email="ottajay@googlemail.com",
+    packages=["valve"],
+    install_requires=[
+        "six>=1.6",
+        "requests>=2.0",
+    ],
+    license="MIT License",
+)
