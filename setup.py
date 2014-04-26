@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2013-2014 Oliver Ainsworth
 
-from distutils.core import setup
+from setuptools import setup
 
 setup(
     name="python-valve",
