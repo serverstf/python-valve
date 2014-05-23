@@ -13,6 +13,7 @@ Contents:
 
    source
    master_server
+   steamid
 
 
 Although Python libraries *do* already exist for many aspects which
