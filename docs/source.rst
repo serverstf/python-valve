@@ -6,7 +6,7 @@ servers such as their name, player count and whether or not they're password
 protected. :mod:`valve.source.server` provides a client implementation of
 A2S.
 
-.. automodule:: valve.source.server
+.. automodule:: valve.source.a2s
     :members:
 
 
@@ -18,11 +18,11 @@ score-decesending.
 
 .. code:: python
 
-    import valve.source.server
+    import valve.source.a2s
 
     SERVER_ADDRESS = (..., ...)
 
-    server = valve.source.server.ServerQuerier(SERVER_ADDRESS)
+    server = valve.source.a2s.ServerQuerier(SERVER_ADDRESS)
     info = server.get_info()
     players = server.get_players()
 
