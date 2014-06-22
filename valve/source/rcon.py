@@ -248,4 +248,4 @@ def shell(rcon=None):
     while True:
         cmd = rcon.execute(prompt())
         with rcon.response_to(cmd) as response:
-            print response.body
+            print(response.body)
