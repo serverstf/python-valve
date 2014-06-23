@@ -38,13 +38,13 @@ def coerce_type(token):
 
     regexes = [
         # regex, converter
-        (ur"^-?[0-9]+$", int),
-        (ur"^[-+]?[0-9]*\.?[0-9]+$", float),
+        (r"^-?[0-9]+$", int),
+        (r"^[-+]?[0-9]*\.?[0-9]+$", float),
         # TODO: ("rgb", pass),
         # TODO: ("hex triplet", pass),
         ]
     for regex, converter in regexes:
-        print regex, converter, token, re.match(regex, token, re.UNICODE)
+        print(regex, converter, token, re.match(regex, token, re.UNICODE))
         if re.match(regex, token, re.UNICODE):
             return converter(token)
     # Fallback to string
