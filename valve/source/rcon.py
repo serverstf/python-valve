@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013 Oliver Ainsworth
+# Copyright (C) 2013-2014 Oliver Ainsworth
 
 """
     Provides an interface to the Source Dedicated Server (SRCDS) remote
     console (RCON), allow you to issue commands to a server remotely.
 """
+
+from __future__ import (absolute_import,
+                        unicode_literals, print_function, division)
 
 import errno
 import socket
@@ -31,7 +34,7 @@ class Message(object):
     SERVERDATA_EXECCOMAND = 2
     SERVERDATA_RESPONSE_VALUE = 0
 
-    def __init__(self, id, type, body=u""):
+    def __init__(self, id, type, body=""):
         self.id = id
         self.type = type
         self.body = body
@@ -55,11 +58,18 @@ class Message(object):
         """
             Packet size in bytes, minus the 'size' fields (4 bytes).
         """
-        return struct.calcsize("<ii") + len(self.body.encode("ascii")) + 2
+        return struct.calcsize(b"<ii") + len(self.body.encode("ascii")) + 2
 
     def encode(self):
-        return (struct.pack("<iii", self.size, self.id, self.type) +
-                self.body.encode("ascii") + "\x00\x00")
+        """Encode the message to a bytestring
+
+        Each packed message inludes the payload size (in bytes,) message ID
+        and message type encoded into a 12 byte header. The header is followed
+        by a null-terimnated ASCII-encoded string and a further trailing null
+        terminator.
+        """
+        return (struct.pack(b"<iii", self.size, self.id, self.type) +
+                self.body.encode("ascii") + b"\x00\x00")
 
     @classmethod
     def decode(cls, buffer):
@@ -72,36 +82,56 @@ class Message(object):
             IncompleteMessageError is raised.
         """
 
-        if len(buffer) < struct.calcsize("<i"):
+        if len(buffer) < struct.calcsize(b"<i"):
             raise IncompleteMessageError
-        size = struct.unpack("<i", buffer[:4])[0]
-        if len(buffer) - struct.calcsize("<i") < size:
+        size = struct.unpack(b"<i", buffer[:4])[0]
+        if len(buffer) - struct.calcsize(b"<i") < size:
             raise IncompleteMessageError
         packet = buffer[:size + 4]
         buffer = buffer[size + 4:]
-        id = struct.unpack("<i", packet[4:8])[0]
-        type = struct.unpack("<i", packet[8:12])[0]
+        id = struct.unpack(b"<i", packet[4:8])[0]
+        type = struct.unpack(b"<i", packet[8:12])[0]
         body = packet[12:][:-2].decode("ascii")
         return cls(id, type, body), buffer
 
 
 class RCON(object):
 
-    def __init__(self, address, timeout=10.0):
+    def __init__(self, address, password=None, timeout=10.0):
         self.host = address[0]
         self.port = address[1]
+        self.password = password
         self.timeout = timeout
         self._next_id = 1
         self._read_buffer = ""
         self._active_requests = {}
         self._response = []
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.host, self.port))
-        self.socket.settimeout(0.0)
+        self._socket = None
         self.is_authenticated = False
 
+    def __enter__(self):
+        self.connect()
+        if self.password:
+            self.authenticate(self.password)
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        self.disconnect()
+        self.is_authenticated = False
+        self._next_id = 0
+
+    def __call__(self, command):
+        return self.execute(command).response.body
+
+    def connect(self):
+        """Connect to host, creating transport if necessary"""
+        if not self._socket:
+            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.connect((self.host, self.port))
+        self._socket.settimeout(0.0)
+
     def disconnect(self):
-        self.socket.close()
+        self._socket.close()
         self.is_authenticated = False
 
     def request(self, type, body=u""):
@@ -116,7 +146,7 @@ class RCON(object):
         request = Message(self._next_id, type, body)
         self._active_requests[request.id] = request
         self._next_id += 1
-        self.socket.sendall(request.encode())
+        self._socket.sendall(request.encode())
         # Must send a SERVERDATA_RESPONSE_VALUE after EXECCOMMAND
         # in order to handle multi-packet responses as per
         # https://developer.valvesoftware.com/wiki/RCON#Multiple-packet_Responses
@@ -132,7 +162,7 @@ class RCON(object):
         """
 
         try:
-            self._read_buffer += self.socket.recv(4096)
+            self._read_buffer += self._socket.recv(4096)
         except socket.error as exc:
             if exc.errno not in [errno.EAGAIN,
                                  errno.EWOULDBLOCK,
@@ -201,11 +231,10 @@ class RCON(object):
             that multiple attempts with the wrong password will result
             in the server automatically banning 'this' IP.
         """
-
         request = self.request(Message.SERVERDATA_AUTH, unicode(password))
         with self.response_to(request) as response:
             if response.id == -1:
-                raise AuthenticationError("Bad password")
+                raise AuthenticationError
             self.is_authenticated = True
 
     def execute(self, command, block=True):
