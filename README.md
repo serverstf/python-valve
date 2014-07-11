@@ -22,11 +22,11 @@ simple `echo` command to it.
 ```python
 from valve.source.rcon import RCON
 
-    SERVER_ADDRESS = ("...", 27015)
-    PASSWORD = "top_secret"
+SERVER_ADDRESS = ("...", 27015)
+PASSWORD = "top_secret"
 
-    with RCON(SERVER_ADDRESS, PASSWORD) as rcon:
-        print(rcon("echo Hello, world!"))
+with RCON(SERVER_ADDRESS, PASSWORD) as rcon:
+    print(rcon("echo Hello, world!"))
 ```
 
 
