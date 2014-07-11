@@ -110,17 +110,28 @@ class RCON(object):
         self.is_authenticated = False
 
     def __enter__(self):
+        """Connect and optionally authenticate to the server
+
+        Authentication will only be attempted if the :attr:`.password`
+        attribute is set.
+        """
         self.connect()
         if self.password:
             self.authenticate(self.password)
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
+        """Disconnect from the server"""
         self.disconnect()
         self.is_authenticated = False
         self._next_id = 0
 
     def __call__(self, command):
+        """Execute a command on the server
+
+        This wraps :meth:`.execute` but returns the response body instead of
+        the request :class:`Message` object.
+        """
         return self.execute(command).response.body
 
     def connect(self):
