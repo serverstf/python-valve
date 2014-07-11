@@ -12,14 +12,32 @@ interface to various Valve products and services, including:
 - Source master server
 - Valve Data Format (.vdf) (de)serialiser
 
-Example
---------
+
+RCON Example
+------------
+
+In this example we connect to a Source servers remote console and issue a
+simple `echo` command to it.
+
+```python
+from valve.source.rcon import RCON
+
+    SERVER_ADDRESS = ("...", 27015)
+    PASSWORD = "top_secret"
+
+    with RCON(SERVER_ADDRESS, PASSWORD) as rcon:
+        print(rcon("echo Hello, world!"))
+```
+
+
+Server Query Example
+--------------------
 In this example we demonstrate the Source master server and A2S query
 implementations by listing all Team Fortress 2 servers in Europe
 and Asia running the map `ctf_2fort` along with the players on each
 server sorted by their score.
 
-```
+```python
 import valve.source.server
 import valve.source.master_server
 
@@ -48,10 +66,12 @@ Testing
 Jenkins CI to actively test the A2S implementation against thousands of
 servers.  See http://servers.tf:8080/.
 
+
 Documentation
 -------------
 Documentation is hosted on read the docs at
 http://python-valve.readthedocs.org/.
+
 
 Python 3
 --------
