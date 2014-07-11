@@ -208,11 +208,12 @@ class SteamID(object):
         )
 
     def __init__(self, account_number, instance, type, universe):
+        print(account_number)
         if universe not in _universes:
             raise SteamIDError("Invalid universe {}".format(universe))
         if type not in _types:
             raise SteamIDError("Invalid type {}".format(type))
-        if 0 < account_number > (2**32) - 1:
+        if account_number < 0 or account_number > (2**32) - 1:
             raise SteamIDError(
                 "Account number ({}) out of range".format(account_number))
         if instance not in [1, 0]:
