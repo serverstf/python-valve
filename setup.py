@@ -9,7 +9,7 @@ setup(
     description="Small library implementing various parts of Steam's public interfaces",
     author="Oliver Ainsworth",
     author_email="ottajay@googlemail.com",
-    packages=["valve", "valve.steam", "valve.source"],
+    packages=["valve"],
     install_requires=[
         "six>=1.6",
         "requests>=2.0",
