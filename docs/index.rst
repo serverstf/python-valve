@@ -15,6 +15,7 @@ Contents:
    master_server
    steamid
    rcon
+   api
 
 
 Although Python libraries *do* already exist for many aspects which
