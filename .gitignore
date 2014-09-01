@@ -3,3 +3,5 @@ _build/
 build/
 dist/
 *.egg*
+htmlcov/
+.coverage

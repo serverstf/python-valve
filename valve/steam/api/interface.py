@@ -14,6 +14,7 @@ import warnings
 import xml.etree.ElementTree as etree
 
 import requests
+import six
 
 from ... import vdf
 
@@ -261,7 +262,7 @@ def make_interfaces(api_list, versions):
     :param versions: a dictionary of interface method versions.
     :return: a module of :class:`BaseInterface` subclasses. 
     """
-    module = types.ModuleType("interfaces")
+    module = types.ModuleType("interfaces" if six.PY3 else b"interfaces")
     module.__all__ = []
     for interface_spec in api_list["apilist"]["interfaces"]:
         interface = make_interface(interface_spec,
@@ -397,7 +398,8 @@ class API(object):
 
     def __iter__(self):
         """An iterator of all bound API interfaces"""
-        yield from self._interfaces.values()
+        for interface in self._interfaces.values():
+            yield interface
 
     def pin_versions(self):
         """Get the versions of the methods for each interface
