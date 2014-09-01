@@ -7,8 +7,10 @@ See: https://developer.valvesoftware.com/wiki/SteamID
 """
 
 import re
-import urlparse
 import warnings
+
+import six
+import six.moves.urllib.parse as urlparse
 
 
 UNIVERSE_INDIVIDUAL = 0  #:
@@ -208,7 +210,6 @@ class SteamID(object):
         )
 
     def __init__(self, account_number, instance, type, universe):
-        print(account_number)
         if universe not in _universes:
             raise SteamIDError("Invalid universe {}".format(universe))
         if type not in _types:
@@ -228,7 +229,7 @@ class SteamID(object):
     def type_name(self):
         """The account type as a string"""
 
-        return {v: k for k, v in globals().iteritems()
+        return {v: k for k, v in six.iteritems(globals())
                 if k.startswith("TYPE_")}.get(self.type, self.type)
 
     def __str__(self):
