@@ -4,12 +4,29 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
-
+import re
 import types
 
 import mock
+import pytest
 
 from valve.steam.api import interface
+
+
+class TestEnsureIdentifier(object):
+
+    RE_IDENTIFIER = re.compile(r"[A-Za-z_][0-9A-Za-z_]*")
+
+    def test_strip_bad_chars(self):
+        assert interface._ensure_identifier("Upsidé;Down!") == "UpsidDown"
+
+    def test_strip_bad_start(self):
+        assert interface._ensure_identifier("123testing123") == "testing123"
+
+    def test_illegal(self):
+        with pytest.raises(NameError):
+            interface._ensure_identifier("12345!£$%^&*()678909")
+
 
 def test_make_interfaces(monkeypatch):
     mocks = [mock.Mock(), mock.Mock()]
