@@ -15,8 +15,6 @@ from valve.steam.api import interface
 
 class TestEnsureIdentifier(object):
 
-    RE_IDENTIFIER = re.compile(r"[A-Za-z_][0-9A-Za-z_]*")
-
     def test_strip_bad_chars(self):
         assert interface._ensure_identifier("Upsidé;Down!") == "UpsidDown"
 
