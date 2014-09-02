@@ -247,7 +247,11 @@ def make_interface(spec, versions):
                 FutureWarning,
             )
     attrs.update(methods)
-    return type(spec["name"], (BaseInterface,), attrs)
+    return type(
+        spec["name"] if six.PY3 else bytes(spec["name"]),
+        (BaseInterface,),
+        attrs,
+    )
 
 
 def make_interfaces(api_list, versions):
