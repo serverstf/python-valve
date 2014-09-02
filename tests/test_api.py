@@ -41,3 +41,88 @@ def test_make_interfaces(monkeypatch):
     assert interface.make_interface.call_args_list[1][0][1] == {}
     assert interfaces.TestInterfaceOne is mocks_copy[0]
     assert interfaces.TestInterfaceTwo is mocks_copy[1]
+
+
+class TestMakeInterface(object):
+
+    def test_not_pinned(self, monkeypatch):
+        mocks = [mock.Mock(), mock.Mock()]
+        mocks_copy = mocks[:]
+        mocks[0].name = "TestMethod"
+        mocks[0].version = 1
+        mocks[1].name = "TestMethod"
+        mocks[1].version = 2
+        monkeypatch.setattr(interface,
+                            "make_method",
+                            mock.Mock(side_effect=lambda *args: mocks.pop(0)))
+        iface = interface.make_interface(
+            {
+                "name": "TestInterfaceOne",
+                "methods": [
+                    {
+                        "name": "TestMethod",
+                        "version": 1,
+                    },
+                    {
+                        "name": "TestMethod",
+                        "version": 2,
+                    }
+                ],
+            },
+            {}
+        )
+        assert issubclass(iface, interface.BaseInterface)
+        assert iface.TestMethod.name == "TestMethod"
+        assert iface.TestMethod.version == 2
+        assert list(iface(mock.Mock())) == [mocks_copy[1]]
+        assert interface.make_method.call_count == 2
+        assert interface.make_method.call_args_list[0][0][0] == {
+            "name": "TestMethod",
+            "version": 1,
+        }
+        assert interface.make_method.call_args_list[1][0][0] == {
+            "name": "TestMethod",
+            "version": 2,
+        }
+
+    def test_pinned(self, monkeypatch):
+        mocks = [mock.Mock(), mock.Mock()]
+        mocks_copy = mocks[:]
+        mocks[0].name = "TestMethod"
+        mocks[0].version = 1
+        mocks[1].name = "TestMethod"
+        mocks[1].version = 2
+        monkeypatch.setattr(interface,
+                            "make_method",
+                            mock.Mock(side_effect=lambda *args: mocks.pop(0)))
+        iface = interface.make_interface(
+            {
+                "name": "TestInterfaceOne",
+                "methods": [
+                    {
+                        "name": "TestMethod",
+                        "version": 1,
+                    },
+                    {
+                        "name": "TestMethod",
+                        "version": 2,
+                    }
+                ],
+            },
+            {
+                "TestMethod": 1,
+            },
+        )
+        assert issubclass(iface, interface.BaseInterface)
+        assert iface.TestMethod.name == "TestMethod"
+        assert iface.TestMethod.version == 1
+        assert list(iface(mock.Mock())) == [mocks_copy[0]]
+        assert interface.make_method.call_count == 2
+        assert interface.make_method.call_args_list[0][0][0] == {
+            "name": "TestMethod",
+            "version": 1,
+        }
+        assert interface.make_method.call_args_list[1][0][0] == {
+            "name": "TestMethod",
+            "version": 2,
+        }
