@@ -4,6 +4,7 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
+import collections
 import contextlib
 import functools
 import json
@@ -132,6 +133,84 @@ def _ensure_identifier(name):
     return identifier
 
 
+class _MethodParameters(collections.OrderedDict):
+    """Represents the parameters accepted by a Steam API interface method
+
+    Parameters are sorted alphabetically by their name.
+    """
+
+    def __init__(self, specs):
+        unordered = {}
+        for spec in specs:
+            if spec["name"] == "key":
+                # This is applied in API.request()
+                continue
+            spec["name"] = _ensure_identifier(spec["name"])
+            if spec["name"] in unordered:
+                # Hopefully this will never happen ...
+                raise NameError("Parameter name {!r} "
+                                "already in use".format(spec["name"]))
+            if "description" not in spec:
+                spec["description"] = ""
+            if spec["type"] not in PARAMETER_TYPES:
+                warnings.warn(
+                    "No parameter type handler for {!r}, interpreting "
+                    "as 'string'; however this may change in "
+                    "the future".format(spec["type"]), FutureWarning)
+                spec["type"] = "string"
+            unordered[spec["name"]] = spec
+        super(_MethodParameters, self).__init__(
+            sorted(unordered.items(), key=lambda a: a[0]))
+
+    @property
+    def signature(self):
+        """Get the method signature as a string
+
+        Firstly the the parameters are split into mandatory and optional groups.
+        The mandatory fields with no default are always first so it's valid
+        syntaxically. These are sorted alphabetically. The optional parameters
+        follow with their default set to None. These are also sorted
+        alphabetically.
+
+        Includes the leading 'self' argument.
+        """
+        signature = ["self"]
+        optional = []
+        mandatory = []
+        for param in self.values():
+            if param["optional"]:
+                optional.append(param)
+            else:
+                mandatory.append(param)
+        signature.extend(param["name"] for param in mandatory)
+        signature.extend(param["name"] + "=None" for param in optional)
+        return ", ".join(signature)
+
+    def validate(self, **kwargs):
+        """Validate key-word arguments
+
+        Validates and coerces arguments to the correct type when making the
+        HTTP request. Optional parameters which are not given or are set to
+        None are not included in the returned dictionary.
+
+        :raises TypeError: if any mandatory arguments are missing.
+        :return: a dictionary of parameters to be sent with the method request.
+        """
+        values = {}
+        for arg in self.values():
+            value = kwargs.get(arg["name"])
+            if value is None:
+                if not arg["optional"]:
+                    # Technically the method signature protects against this
+                    # ever happening
+                    raise TypeError(
+                        "Missing mandatory argument {!r}".format(arg["name"]))
+                else:
+                    continue
+            values[arg["name"]] = PARAMETER_TYPES[arg["type"]](value)
+        return values
+
+
 def make_method(spec):
     """Make an interface method
 
@@ -147,46 +226,22 @@ def make_method(spec):
         * ``parameters``
     """
     spec["name"] = _ensure_identifier(spec["name"])
-    args = {}
-    for param_spec in spec["parameters"]:
-        if param_spec["name"] == "key":
-            # This is applied in API.request()
-            continue
-        name = _ensure_identifier(param_spec["name"])
-        if name in args:
-            # Hopefully this will never happen either.
-            raise RuntimeError("Parameter name {!r} for {} "
-                               "already in use".format(name, spec["name"]))
-        if "description" not in param_spec:
-            param_spec["description"] = ""
-        args[name] = param_spec
+    args = _MethodParameters(spec["parameters"])
 
     def method(self, **kwargs):
-        params = {}
-        for arg, param_spec in args.items():
-            param = kwargs.pop(arg, None)
-            if param is None:
-                if not param_spec["optional"]:
-                    raise TypeError(
-                        "Missing required argument {!r}".format(arg))
-                else:
-                    continue
-            params[arg] = PARAMETER_TYPES.get(param_spec["type"], str)(param)
-        return self._request(spec["httpmethod"],
-                             spec["name"], spec["version"], params)
-     
-    sorted_args = sorted(args.items(), key=lambda a: a[0])
-    param_docs = []
-    for arg, param_spec in sorted_args:
-        param_docs.append(
-            ":param {type} {arg}: {description}".format(arg=arg, **param_spec))
+        return self._request(spec["httpmethod"], spec["name"],
+                             spec["version"], args.validate(**kwargs))
+
+    # Do some eval() voodoo so we can rewrite the method signature. Otherwise
+    # when something like autodoc sees it, it'll just output f(**kwargs) which
+    # is really lame. _ensure_identifiers sanitises the function and
+    # argument names it's safe.
     eval_globals = {}
-    # _ensure_identifiers sanitises the function and argument names
     code = compile(
         textwrap.dedent("""
-            def {}(self, {}):
+            def {}({}):
                 return method(**locals())
-            """.format(spec["name"], ", ".join(arg[0] for arg in sorted_args))),
+            """.format(spec["name"], args.signature)),
         "<voodoo>",
         "exec",
     )
@@ -194,7 +249,11 @@ def make_method(spec):
     method = eval_globals[spec["name"]]
     method.version = spec["version"]
     method.name = spec["name"]
-    method.__name__ = spec["name"]
+    method.__name__ = spec["name"] if six.PY3 else bytes(spec["name"])
+    param_docs = []
+    for arg, param_spec in args.items():
+        param_docs.append(
+            ":param {type} {arg}: {description}".format(arg=arg, **param_spec))
     method.__doc__ = "\n".join(param_docs) if param_docs else None
     return method
 
@@ -215,7 +274,7 @@ def make_interface(spec, versions):
     :param versions: a dictionary of method versions to use for the interface.
     """
     methods = {}
-    max_versions = {} 
+    max_versions = {}
     attrs = {"name": spec["name"],
              "__iter__": lambda self: iter(methods.values())}
     for method_spec in spec["methods"]:
@@ -264,7 +323,7 @@ def make_interfaces(api_list, versions):
     :param api_list: a JSON-decoded response to a
         ``ISteamWebAPIUtil/GetSupportedAPIList/v1`` request.
     :param versions: a dictionary of interface method versions.
-    :return: a module of :class:`BaseInterface` subclasses. 
+    :return: a module of :class:`BaseInterface` subclasses.
     """
     module = types.ModuleType("interfaces" if six.PY3 else b"interfaces")
     module.__all__ = []
@@ -294,12 +353,12 @@ class API(object):
         handle. For convenience the ``format`` parameter also accepts the
         strings ``json``, ``xml`` and ``vdf`` which are mapped to the
         :func:`json_format`, :func:`etree_format` and :func:`vdf_format`
-        formatters respectively. 
+        formatters respectively.
 
         The ``interfaces`` argument can optionally be set to a module
         containing :class:`BaseInterface` subclasses which will be instantiated
         and bound to the :class:`API` instance. If not given then the
-        interfaces are loaded using ``ISteamWebAPIUtil/GetSupportedAPIList``. 
+        interfaces are loaded using ``ISteamWebAPIUtil/GetSupportedAPIList``.
 
         The optional ``versions`` argument allows specific versions of interface
         methods to be used. If given, ``versions`` should be a mapping of
@@ -352,7 +411,7 @@ class API(object):
         for name, interface in self._interfaces_module.__dict__.items():
             try:
                 if issubclass(interface, BaseInterface):
-                    self._interfaces[name] = interface(self) 
+                    self._interfaces[name] = interface(self)
             except TypeError:
                 # Not a class
                 continue
@@ -368,7 +427,7 @@ class API(object):
         :param str interface: the name of the interface.
         :param str method: the name of the method on the interface.
         :param int version: the version of the method.
-        :param params: a mapping of GET or POST data to be sent with the 
+        :param params: a mapping of GET or POST data to be sent with the
             request.
         :param format: a response formatter callable to overide :attr:`format`.
         """
