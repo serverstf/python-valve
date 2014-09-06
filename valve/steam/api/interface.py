@@ -87,10 +87,22 @@ def uint64(value):
     return value
 
 
+def int32(value):
+    """Validate a 'int32' method parameter type"""
+    value = int(value)
+    if value > 2147483647:
+        raise ValueError("{} exceeds upper bound for int32".format(value))
+    if value < -2147483648:
+        raise ValueError("{} below lower bound for int32".format(value))
+
+
 PARAMETER_TYPES = {
     "string": str,
+    "bool": bool,
     "uint32": uint32,
     "uint64": uint64,
+    "int32": int32,
+    "rawbinary": bytes,
 }
 
 
