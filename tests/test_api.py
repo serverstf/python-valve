@@ -329,3 +329,135 @@ def test_make_method():
     assert iface._request.call_args[0][1] == "test"
     assert iface._request.call_args[0][2] == 1
     assert iface._request.call_args[0][3] == {"foo": "foo"}
+
+
+class TestAPI(object):
+
+    @pytest.fixture
+    def interfaces(self):
+        module = types.ModuleType(str("test"))
+        module.TestInterface = type(
+            str("TestInterface"), (interface.BaseInterface,), {})
+        return module
+
+    @pytest.mark.parametrize(("format_name", "format_func"), [
+        ("json", interface.json_format),
+        ("xml", interface.etree_format),
+        ("vdf", interface.vdf_format),
+    ])
+    def test_formats(self, monkeypatch, format_name, format_func):
+        monkeypatch.setattr(interface, "make_interfaces", mock.Mock())
+        monkeypatch.setattr(interface.API, "_bind_interfaces", mock.Mock())
+        monkeypatch.setattr(interface.API, "request", mock.Mock())
+        api = interface.API(format=format_name)
+        assert api.format is format_func
+        assert interface.make_interfaces.called
+        assert (interface.make_interfaces.call_args[0][0]
+                is api.request.return_value)
+        assert interface.make_interfaces.call_args[0][1] == {}
+        assert api.request.called
+        assert api.request.call_args[0][0] == "GET"
+        assert api.request.call_args[0][1] == "ISteamWebAPIUtil"
+        assert api.request.call_args[0][2] == "GetSupportedAPIList"
+        assert api.request.call_args[0][3] == 1
+        assert api.request.call_args[1]["format"] is interface.json_format
+        assert api._bind_interfaces.called
+
+    def test_inherit_interfaces(self, monkeypatch):
+        monkeypatch.setattr(interface, "make_interfaces", mock.Mock())
+        monkeypatch.setattr(interface.API, "_bind_interfaces", mock.Mock())
+        monkeypatch.setattr(interface.API, "request", mock.Mock())
+        interfaces = types.ModuleType(str("test"))
+        api = interface.API(interfaces=interfaces)
+        assert api._interfaces_module == interfaces
+        assert not interface.make_interfaces.called
+        assert api._bind_interfaces.called
+        assert not api.request.called
+
+    def test_getitem(self):
+        api = interface.API(interfaces=types.ModuleType(str("test")))
+        api._interfaces = mock.MagicMock()
+        assert api["Test"] is api._interfaces.__getitem__.return_value
+        assert api._interfaces.__getitem__.call_args[0][0] == "Test"
+
+    def test_bind_interfaces(self, interfaces):
+        interfaces.NotSubClass = type(str("NotSubClass"), (), {})
+        interface.not_a_class = None
+        api = interface.API(interfaces=interfaces)
+        assert isinstance(api["TestInterface"], interface.BaseInterface)
+        with pytest.raises(KeyError):
+            api["NotSubClass"]
+
+    def test_request(self, interfaces):
+        api = interface.API(interfaces=interfaces)
+        api._session = mock.Mock()
+        api.format = mock.Mock(format="json")
+        request = api._session.request
+        raw_response = request.return_value
+        response = api.request("GET", "interface", "method",
+                               1, params={"key": "test", "foo": "bar"})
+        assert api.format.called
+        assert api.format.call_args[0][0] is raw_response.text
+        assert request.call_args[0][0] == "GET"
+        assert request.call_args[0][1] == api.api_root + "interface/method/v1/"
+        assert request.call_args[0][2] == {"format": "json", "foo": "bar"}
+
+    @pytest.mark.parametrize("format_", ["json", "xml", "vdf"])
+    def test_request_with_key(self, interfaces, format_):
+        api = interface.API(key="key", interfaces=interfaces)
+        api._session = mock.Mock()
+        api.format = mock.Mock(format=format_)
+        request = api._session.request
+        raw_response = request.return_value
+        response = api.request("GET", "interface", "method",
+                               1, params={"key": "test", "foo": "bar"})
+        assert api.format.called
+        assert api.format.call_args[0][0] is raw_response.text
+        assert request.call_args[0][0] == "GET"
+        assert request.call_args[0][1] == api.api_root + "interface/method/v1/"
+        assert request.call_args[0][2] == {
+            "key": "key",
+            "format": format_,
+            "foo": "bar",
+        }
+
+    def test_request_unknown_format(self, interfaces):
+        api = interface.API(interfaces=interfaces)
+        api._session = mock.Mock()
+        api.format = mock.Mock(format="invalid")
+        request = api._session.request
+        raw_response = request.return_value
+        with pytest.raises(ValueError):
+            api.request("GET", "interface", "method", 1)
+
+    def test_iter(self, interfaces):
+        api = interface.API(interfaces=interfaces)
+        foo = object()
+        bar = object()
+        api._interfaces = {"foo": foo, "bar": bar}
+        list_ = list(api)
+        assert len(list_) == 2
+        assert foo in list_
+        assert bar in list_
+
+    def test_versions(self, interfaces):
+        api = interface.API(interfaces=interfaces)
+        ifoo = mock.MagicMock()
+        ifoo.name = "ifoo"
+        ifoo_meths = [mock.Mock(version=1), mock.Mock(version=2)]
+        ifoo_meths[0].name = "eggs"
+        ifoo_meths[1].name = "spam"
+        ifoo.__iter__ = lambda i: iter(ifoo_meths)
+        ibar = mock.MagicMock()
+        ibar.name = "ibar"
+        ibar_meths = [mock.Mock(version=1)]
+        ibar_meths[0].name = "method"
+        ibar.__iter__ = lambda i: iter(ibar_meths)
+        api._interfaces = {
+            "ifoo": ifoo,
+            "ibar": ibar,
+        }
+        assert api.versions() == {
+            "ifoo": {"eggs": 1, "spam": 2},
+            "ibar": {"method": 1},
+        }

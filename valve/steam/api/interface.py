@@ -476,7 +476,7 @@ class API(object):
         for interface in self._interfaces.values():
             yield interface
 
-    def pin_versions(self):
+    def versions(self):
         """Get the versions of the methods for each interface
 
         This returns a dictionary of dictionaries which is keyed against
