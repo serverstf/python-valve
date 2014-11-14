@@ -109,7 +109,7 @@ class RCON(object):
         self.password = password
         self.timeout = timeout
         self._next_id = 1
-        self._read_buffer = ""
+        self._read_buffer = b""
         self._active_requests = {}
         self._response = []
         self._socket = None
@@ -186,7 +186,7 @@ class RCON(object):
         response, self._read_buffer = Message.decode(self._read_buffer)
         # Check if terminating RESPONSE_VALUE with body 00 01 00 00
         if (response.type == Message.SERVERDATA_RESPONSE_VALUE and
-                response.body.encode("ascii") == "\x00\x01\x00\x00"):
+                response.body.encode("ascii") == b"\x00\x01\x00\x00"):
             response = Message(self._response[0].id,
                                self._response[0].type,
                                "".join([r.body for r in self._response]))
