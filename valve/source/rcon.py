@@ -10,9 +10,15 @@ from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
 import errno
+import os
 import socket
 import struct
 import time
+
+
+WOULDBLOCK = [errno.EAGAIN, errno.EWOULDBLOCK]
+if os.name == "nt":
+    WOULDBLOCK.append(errno.WSAEWOULDBLOCK)
 
 
 class IncompleteMessageError(Exception):
@@ -175,9 +181,7 @@ class RCON(object):
         try:
             self._read_buffer += self._socket.recv(4096)
         except socket.error as exc:
-            if exc.errno not in [errno.EAGAIN,
-                                 errno.EWOULDBLOCK,
-                                 errno.WSAEWOULDBLOCK]:
+            if exc.errno not in WOULDBLOCK:
                 raise
         response, self._read_buffer = Message.decode(self._read_buffer)
         # Check if terminating RESPONSE_VALUE with body 00 01 00 00
