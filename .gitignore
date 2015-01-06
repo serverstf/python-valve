@@ -5,3 +5,4 @@ dist/
 *.egg*
 htmlcov/
 .coverage
+.tox/
