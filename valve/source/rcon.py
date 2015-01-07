@@ -97,7 +97,7 @@ class Message(object):
         buffer = buffer[size + 4:]
         id = struct.unpack(b"<i", packet[4:8])[0]
         type = struct.unpack(b"<i", packet[8:12])[0]
-        body = packet[12:][:-2].decode("ascii")
+        body = packet[12:][:-2].decode("ascii", "ignore")
         return cls(id, type, body), buffer
 
 
