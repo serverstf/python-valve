@@ -226,7 +226,7 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
             regions = []
             for reg in region:
                 regions.extend(self._map_region(reg))
-        filter_ = []
+        filter_ = {}
         for key, value in six.iteritems(filters):
             if key in {"secure", "linux", "empty",
                        "full", "proxy", "noplayers", "white"}:
@@ -244,9 +244,10 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
                     value = util.ServerType(value).char
                 else:
                     value = value.char
-            filter_.append(key)
-            filter_.append(six.text_type(value))
-        filter_string = "\\".join(filter_)
+            filter_[key] = six.text_type(value)
+        # Order doesn't actually matter, but it makes testing easier
+        filter_ = sorted(filter_.items(), key=lambda pair: pair[0])
+        filter_string = "\\".join([part for pair in filter_ for part in pair])
         if filter_string:
             filter_string = "\\" + filter_string
         for region in regions:
