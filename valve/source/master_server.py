@@ -196,7 +196,7 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
         +------------+-------------------------------------------------------+
         | linux      | Servers running on Linux. Boolean.                    |
         +------------+-------------------------------------------------------+
-        | empty      | Servers which are empty. Boolean.                     |
+        | empty      | Servers which are not empty. Boolean.                 |
         +------------+-------------------------------------------------------+
         | full       | Servers which are full. Boolean.                      |
         +------------+-------------------------------------------------------+
@@ -208,7 +208,7 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
         +------------+-------------------------------------------------------+
         | noplayers  | Servers that are empty. Boolean                       |
         +------------+-------------------------------------------------------+
-        | white      | Whitelisted servers only                              |
+        | white      | Whitelisted servers only. Boolean.                    |
         +------------+-------------------------------------------------------+
         | gametype   | Server which match *all* the tags given. This should  |
         |            | be set to a list of strings.                          |
@@ -219,6 +219,13 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
         | gamedataor | Servers which match *any* of the given hidden tags.   |
         |            | Only applicable to L4D2 servers.                      |
         +------------+-------------------------------------------------------+
+
+        .. note::
+            Your mileage may vary with some of these filters. There's no
+            real guarantee that the servers returned by the master server will
+            actually satisfy the filter. Because of this it's advisable to
+            explicitly check for compliance by querying each server
+            individually. See :mod:`valve.source.a2s`.
         """
         if isinstance(region, (int, six.text_type)):
             regions = self._map_region(region)
