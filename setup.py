@@ -4,7 +4,7 @@
 import sys
 import textwrap
 
-from setuptools import setup
+from setuptools import setup, find_packages
 from setuptools.command.test import test as TestCommand
 
 
@@ -35,7 +35,7 @@ setup(
                  "various parts of Steam's public interfaces"),
     author="Oliver Ainsworth",
     author_email="ottajay@googlemail.com",
-    packages=["valve"],
+    packages=find_packages(),
     install_requires=[
         "six>=1.6",
         "requests>=2.0",
