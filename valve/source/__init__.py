@@ -1,1 +1,4 @@
 
+"""
+    Source Engine specific tools.
+"""
