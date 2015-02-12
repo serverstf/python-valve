@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2013 Oliver Ainsworth
 
+# TODO: Document this module.
+# pylint: disable=missing-docstring
+
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
@@ -27,19 +30,24 @@ class BufferExhaustedError(BrokenMessageError):
 
 
 def use_default(func):
-    def use_default(self, value=None, values={}):
+    """
+        Returns the default callable.
+    """
+    def _use_default(self, value=None, values=None):
+        if not values:
+            values = dict()
         if value is None:
             return func(self, self.default_value, values)
         return func(self, value, values)
-    return use_default
+    return _use_default
 
 
 def needs_buffer(func):
-    def needs_buffer(self, buffer, *args, **kwargs):
-        if len(buffer) == 0:
+    def _needs_buffer(self, my_buffer, *args, **kwargs):
+        if len(my_buffer) == 0:
             raise BufferExhaustedError
-        return func(self, buffer, *args, **kwargs)
-    return needs_buffer
+        return func(self, my_buffer, *args, **kwargs)
+    return _needs_buffer
 
 
 class MessageField(object):
@@ -48,7 +56,7 @@ class MessageField(object):
     validators = []
 
     def __init__(self, name, optional=False,
-                 default_value=None, validators=[]):
+                 default_value=None, validators=None):
         """
             name -- used when decoding messages to set the key in the
                 returned dictionary
@@ -62,6 +70,8 @@ class MessageField(object):
             validators -- list of callables that return False if the
                 value they're passed is invalid
         """
+        if not validators:
+            validators = list()
 
         if self.fmt is not None:
             if self.fmt[0] not in "@=<>!":
@@ -96,14 +106,16 @@ class MessageField(object):
         return value
 
     @use_default
-    def encode(self, value, values={}):
+    def encode(self, value, values=None):
+        if not values:
+            values = dict()
         try:
             return struct.pack(self.format, self.validate(value))
         except struct.error as exc:
             raise BrokenMessageError(exc)
 
     @needs_buffer
-    def decode(self, buffer, values={}):
+    def decode(self, my_buffer, _=None):
         """
             Accepts a string of raw bytes which it will attempt to
             decode into some Python object which is returned. All
@@ -122,10 +134,10 @@ class MessageField(object):
         """
 
         field_size = struct.calcsize(self.format)
-        if len(buffer) < field_size:
+        if len(my_buffer) < field_size:
             raise BufferExhaustedError
-        field_data = buffer[:field_size]
-        left_overs = buffer[field_size:]
+        field_data = my_buffer[:field_size]
+        left_overs = my_buffer[field_size:]
         try:
             return (self.validate(
                 struct.unpack(self.format, field_data)[0]), left_overs)
@@ -141,17 +153,21 @@ class StringField(MessageField):
     fmt = "s"
 
     @use_default
-    def encode(self, value, values={}):
+    def encode(self, value, values=None):
+        if not values:
+            values = dict()
         return value.encode("utf8") + b"\x00"
 
     @needs_buffer
-    def decode(self, buffer, values={}):
-        terminator = buffer.find(b"\x00")
+    def decode(self, my_buffer, values=None):
+        if not values:
+            values = dict()
+        terminator = my_buffer.find(b"\x00")
         if terminator == -1:
             raise BufferExhaustedError("No string terminator")
         field_size = terminator + 1
-        field_data = buffer[:field_size-1]
-        left_overs = buffer[field_size:]
+        field_data = my_buffer[:field_size-1]
+        left_overs = my_buffer[field_size:]
         return field_data.decode("utf8", "ignore"), left_overs
 
 
@@ -170,18 +186,22 @@ class FloatField(MessageField):
 class PlatformField(ByteField):
 
     @needs_buffer
-    def decode(self, buffer, values={}):
+    def decode(self, my_buffer, values=None):
+        if not values:
+            values = dict()
         byte, remnant_buffer = super(PlatformField,
-                                     self).decode(buffer, values)
+                                     self).decode(my_buffer, values)
         return util.Platform(byte), remnant_buffer
 
 
 class ServerTypeField(ByteField):
 
     @needs_buffer
-    def decode(self, buffer, values={}):
+    def decode(self, my_buffer, values=None):
+        if not values:
+            values = dict()
         byte, remnant_buffer = super(ServerTypeField,
-                                     self).decode(buffer, values)
+                                     self).decode(my_buffer, values)
         return util.ServerType(byte), remnant_buffer
 
 
@@ -191,6 +211,9 @@ class MessageArrayField(MessageField):
         repeated a given number of time (often defined within the
         same message.)
     """
+
+    # TODO: What The Fuc-:boom:
+    # pylint: disable=unused-argument, dangerous-default-value
 
     def __init__(self, name, element, count=None):
         """
@@ -244,7 +267,7 @@ class MessageArrayField(MessageField):
             raise BrokenMessageError("Too few elements")
         return b"".join(buf)
 
-    def decode(self, buffer, values={}):
+    def decode(self, my_buffer, values={}):
         entries = []
         count = 0
         while count < self.count(values):
@@ -274,10 +297,10 @@ class MessageArrayField(MessageField):
             # FF FF FF 00 bytes and stored as message payload.
             #
             # This is very much an edge case. :/
-            start_buffer = buffer
+            start_buffer = my_buffer
             try:
-                entry = self.element.decode(buffer)
-                buffer = entry.payload
+                entry = self.element.decode(my_buffer)
+                my_buffer = entry.payload
                 entries.append(entry)
                 count += 1
             except (BufferExhaustedError, BrokenMessageError) as exc:
@@ -285,9 +308,9 @@ class MessageArrayField(MessageField):
                 # buffer is reached.
                 if count < self.count.minimum:
                     raise BrokenMessageError(exc)
-                buffer = start_buffer
+                my_buffer = start_buffer
                 break
-        return entries, buffer
+        return entries, my_buffer
 
     @staticmethod
     def value_of(name):
@@ -295,8 +318,8 @@ class MessageArrayField(MessageField):
             Reference another field's value as the argument 'count'.
         """
 
-        def field(values={}, f=None):
-            f.minimum = values[name]
+        def field(values={}, file_handle=None):
+            file_handle.minimum = values[name]
             return values[name]
 
         if six.PY3:
@@ -343,6 +366,8 @@ class MessageArrayField(MessageField):
         at_least.minimum = minimum
         return at_least
 
+    # TODO: What The Fuc-:boom:
+    # pylint: enable=unused-argument, dangerous-default-value
 
 class MessageDictField(MessageArrayField):
     """
@@ -367,13 +392,15 @@ class MessageDictField(MessageArrayField):
         self.value_field = value_field
         MessageArrayField.__init__(self, name, element, count)
 
-    def decode(self, buffer, values={}):
-        entries, buffer = MessageArrayField.decode(self, buffer, values)
+    def decode(self, my_buffer, values=None):
+        if not values:
+            values = dict()
+        entries, my_buffer = MessageArrayField.decode(self, my_buffer, values)
         entries_dict = {}
         for entry in entries:
             entries_dict[entry[
                 self.key_field.name]] = entry[self.value_field.name]
-        return entries_dict, buffer
+        return entries_dict, my_buffer
 
 
 class Message(collections.Mapping):
@@ -409,11 +436,13 @@ class Message(collections.Mapping):
 
     @classmethod
     def decode(cls, packet):
-        buffer = packet
+        my_buffer = packet
         values = {}
         for field in cls.fields:
-            values[field.name], buffer = field.decode(buffer, values)
-        return cls(buffer, **values)
+            values[field.name], my_buffer = field.decode(my_buffer, values)
+        # pylint: disable=star-args
+        return cls(my_buffer, **values)
+        # pylint: enable=star-args
 
 
 class Header(Message):
@@ -541,11 +570,13 @@ class MSAddressEntryPortField(MessageField):
 class MSAddressEntryIPField(MessageField):
 
     @needs_buffer
-    def decode(self, buffer, values={}):
-        if len(buffer) < 4:
+    def decode(self, my_buffer, values=None):
+        if not values:
+            values = dict()
+        if len(my_buffer) < 4:
             raise BufferExhaustedError
-        field_data = buffer[:4]
-        left_overs = buffer[4:]
+        field_data = my_buffer[:4]
+        left_overs = my_buffer[4:]
         return (".".join(six.text_type(b) for b in
                 struct.unpack(b"<BBBB", field_data)), left_overs)
 
