@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2013-2014 Oliver Ainsworth
 
+"""
+    Tools for working with the Valve master server services.
+"""
+
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
@@ -76,7 +80,8 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
                 if not address.is_null:
                     yield address["host"], address["port"]
 
-    def _map_region(self, region):
+    @staticmethod
+    def _map_region(region):
         """Convert string to numeric region identifier
 
         If given a non-string then a check is performed to ensure it is a
@@ -125,6 +130,7 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
                 raise ValueError("Invalid region identifier {!r}".format(reg))
         return regions
 
+    # TODO: Reduce comlexity.
     def find(self, region="all", **filters):
         """Find servers for a particular region and set of filtering rules
 
@@ -228,11 +234,11 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
             individually. See :mod:`valve.source.a2s`.
         """
         if isinstance(region, (int, six.text_type)):
-            regions = self._map_region(region)
+            regions = MasterServerQuerier._map_region(region)
         else:
             regions = []
             for reg in region:
-                regions.extend(self._map_region(reg))
+                regions.extend(MasterServerQuerier._map_region(reg))
         filter_ = {}
         for key, value in six.iteritems(filters):
             if key in {"secure", "linux", "empty",
