@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013-2014 Oliver Ainsworth
+# Copyright (C) 2013-2015 Oliver Ainsworth
 
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
@@ -72,7 +72,7 @@ class ServerQuerier(BaseServerQuerier):
                 fragment = messages.Fragment.decode(
                     messages.Header.decode(data).payload)
                 fragments[fragment["fragment_id"]] = fragment
-            return "".join([frag[1].payload for frag in
+            return b"".join([frag[1].payload for frag in
                             sorted(fragments.items(), key=lambda f: f[0])])
         return response.payload
 
