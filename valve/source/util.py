@@ -21,6 +21,8 @@ class Platform(object):
     +=====+==========+
     | 108 | Linux    |
     +-----+----------+
+    | 76  | Linux    |  # Starbound responds with a 'L' instead of a 'l'
+    +-----+----------+  # in the old GoldSource style
     | 109 | Mac OS X |
     +-----+----------+
     | 111 | Mac OS X |
@@ -56,7 +58,7 @@ class Platform(object):
                 if value is None:
                     raise ValueError("Couldn't convert string {!r} to valid "
                                      "platform identifier".format(value))
-        if value not in {108, 109, 111, 119}:
+        if value not in {108, 76, 109, 111, 119}:
             raise ValueError("Invalid platform identifier {!r}".format(value))
         self.value = value
 
@@ -67,6 +69,7 @@ class Platform(object):
     def __unicode__(self):
         return {
             108: "Linux",
+            76: "Linux",
             109: "Mac OS X",
             111: "Mac OS X",
             119: "Windows",
@@ -128,6 +131,7 @@ class Platform(object):
 
 
 Platform.LINUX = Platform(108)
+Platform.LINUXGS = Platform(76)
 Platform.MAC_OS_X = Platform(111)
 Platform.WINDOWS = Platform(119)
 
@@ -144,6 +148,8 @@ class ServerType(object):
     +=====+===============+
     | 100 | Dedicated     |
     +-----+---------------+
+    | 68  | Dedicated     |  # Starbound responds with a 'D' instead of a 'd'
+    +-----+---------------+  # in the old GoldSource style
     | 108 | Non-dedicated |
     +-----+---------------+
     | 112 | SourceTV      |
@@ -177,7 +183,7 @@ class ServerType(object):
                 if value is None:
                     raise ValueError("Couldn't convert string {!r} to valid "
                                      "server type identifier".format(value))
-        if value not in {100, 108, 112}:
+        if value not in {100, 68, 108, 112}:
             raise ValueError(
                 "Invalid server type identifier {!r}".format(value))
         self.value = value
@@ -189,6 +195,7 @@ class ServerType(object):
     def __unicode__(self):
         return {
             100: "Dedicated",
+            68: "Dedicated",
             108: "Non-Dedicated",
             112: "SourceTV",
         }[self.value]
@@ -232,5 +239,6 @@ class ServerType(object):
 
 
 ServerType.DEDICATED = ServerType(100)
+ServerType.DEDICATEDGS = ServerType(68)
 ServerType.NON_DEDICATED = ServerType(108)
 ServerType.SOURCETV = ServerType(112)
