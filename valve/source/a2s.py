@@ -87,7 +87,7 @@ class ServerQuerier(BaseServerQuerier):
         t_send = time.time()
         self.request(messages.InfoRequest())
         messages.InfoResponse.decode(self.get_response())
-        return (time.time() - t_send) / 1000.0
+        return (time.time() - t_send) * 1000.0
 
     def get_info(self):
         """Retreive information about the server state
