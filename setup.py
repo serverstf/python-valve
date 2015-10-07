@@ -42,7 +42,7 @@ setup(
     ],
     tests_require=[
         "pytest",
-        "mock",
+        "mock==1.0.1",
     ],
     license="MIT License",
     cmdclass={
