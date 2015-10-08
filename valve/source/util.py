@@ -252,6 +252,5 @@ class ServerType(object):
 
 
 ServerType.DEDICATED = ServerType(100)
-ServerType.DEDICATEDGS = ServerType(68)
 ServerType.NON_DEDICATED = ServerType(108)
 ServerType.SOURCETV = ServerType(112)
