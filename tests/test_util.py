@@ -160,6 +160,7 @@ class TestServerType(object):
             util.ServerType(42)
 
     @pytest.mark.parametrize(("identifier", "expected"), [
+        ("D", 68),
         ("d", 100),
         ("l", 108),
         ("p", 112),
@@ -196,6 +197,7 @@ class TestServerType(object):
             util.Platform("")
 
     @pytest.mark.parametrize(("identifier", "string"), [
+        (68, "Dedicated"),
         (100, "Dedicated"),
         (108, "Non-Dedicated"),
         (112, "SourceTV"),
@@ -205,6 +207,7 @@ class TestServerType(object):
         assert six.text_type(server_type) == string
 
     @pytest.mark.parametrize(("identifier", "string"), [
+        (68, b"Dedicated"),
         (100, b"Dedicated"),
         (108, b"Non-Dedicated"),
         (112, b"SourceTV"),
@@ -213,12 +216,15 @@ class TestServerType(object):
         server_type = util.ServerType(identifier)
         assert bytes(server_type) == string
 
-    @pytest.mark.parametrize("identifier", [100, 108, 112])
+    @pytest.mark.parametrize("identifier", [68, 100, 108, 112])
     def test_to_integer(self, identifier):
         server_type = util.ServerType(identifier)
         assert int(server_type) == identifier
 
     @pytest.mark.parametrize(("server_type", "other"), [
+        (util.ServerType(68), util.ServerType(68)),
+        (util.ServerType(68), util.ServerType(100)),  # Starbound
+        (util.ServerType(100), util.ServerType(68)),  # Starbound
         (util.ServerType(100), util.ServerType(100)),
         (util.ServerType(108), util.ServerType(108)),
         (util.ServerType(112), util.ServerType(112)),
@@ -227,6 +233,9 @@ class TestServerType(object):
         assert server_type == other
 
     @pytest.mark.parametrize(("server_type", "other"), [
+        (util.ServerType(68), 68),
+        (util.ServerType(100), 68),  # Starbound
+        (util.ServerType(68), 100),  # Starbound
         (util.ServerType(100), 100),
         (util.ServerType(108), 108),
         (util.ServerType(112), 112),
@@ -235,6 +244,7 @@ class TestServerType(object):
         assert server_type == other
 
     @pytest.mark.parametrize(("server_type", "other"), [
+        (util.ServerType(100), "D"),
         (util.ServerType(100), "d"),
         (util.ServerType(108), "l"),
         (util.ServerType(112), "p"),
@@ -243,6 +253,7 @@ class TestServerType(object):
         assert server_type == other
 
     @pytest.mark.parametrize(("server_type", "other"), [
+        (util.ServerType(68), "Dedicated"),
         (util.ServerType(100), "Dedicated"),
         (util.ServerType(108), "Non-Dedicated"),
         (util.ServerType(112), "SourceTV"),

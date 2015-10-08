@@ -152,14 +152,18 @@ class ServerType(object):
     +-----+---------------+
     | ID  | Server type   |
     +=====+===============+
+    | 68  | Dedicated     |
+    +-----+---------------+
     | 100 | Dedicated     |
     +-----+---------------+
-    | 68  | Dedicated     |  # Starbound responds with a 'D' instead of a 'd'
-    +-----+---------------+  # in the old GoldSource style
     | 108 | Non-dedicated |
     +-----+---------------+
     | 112 | SourceTV      |
     +-----+---------------+
+
+    .. note::
+        Starbound uses 68 instead of 100 for a dedicated server in the old
+        GoldSource style.
     """
 
     def __init__(self, value):
@@ -189,7 +193,7 @@ class ServerType(object):
                 if value is None:
                     raise ValueError("Couldn't convert string {!r} to valid "
                                      "server type identifier".format(value))
-        if value not in {100, 68, 108, 112}:
+        if value not in {68, 100, 108, 112}:
             raise ValueError(
                 "Invalid server type identifier {!r}".format(value))
         self.value = value
@@ -200,8 +204,8 @@ class ServerType(object):
 
     def __unicode__(self):
         return {
-            100: "Dedicated",
             68: "Dedicated",
+            100: "Dedicated",
             108: "Non-Dedicated",
             112: "SourceTV",
         }[self.value]
@@ -237,7 +241,10 @@ class ServerType(object):
         """
         if not isinstance(other, ServerType):
             other = ServerType(other)
-        return self.value == other.value
+        if self.value == 68 or self.value == 100:
+            return other.value == 68 or other.value == 100
+        else:
+            return self.value == other.value
 
     @property
     def char(self):
