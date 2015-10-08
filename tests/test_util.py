@@ -126,7 +126,8 @@ class TestPlatform(object):
         assert platform == other
 
     @pytest.mark.parametrize(("platform", "other"), [
-        (util.Platform(76), "l"),
+        (util.Platform(76), "L"),
+        (util.Platform(76), "l"),  # Starbound
         (util.Platform(108), "l"),
         (util.Platform(109), "m"),
         (util.Platform(111), "o"),
@@ -244,7 +245,8 @@ class TestServerType(object):
         assert server_type == other
 
     @pytest.mark.parametrize(("server_type", "other"), [
-        (util.ServerType(100), "D"),
+        (util.ServerType(68), "D"),
+        (util.ServerType(68), "D"),  # Starbound
         (util.ServerType(100), "d"),
         (util.ServerType(108), "l"),
         (util.ServerType(112), "p"),
