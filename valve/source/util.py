@@ -19,16 +19,20 @@ class Platform(object):
     +-----+----------+
     | ID  | Platform |
     +=====+==========+
+    | 76  | Linux    |
+    +-----+----------+
     | 108 | Linux    |
     +-----+----------+
-    | 76  | Linux    |  # Starbound responds with a 'L' instead of a 'l'
-    +-----+----------+  # in the old GoldSource style
     | 109 | Mac OS X |
     +-----+----------+
     | 111 | Mac OS X |
     +-----+----------+
     | 119 | Windows  |
     +-----+----------+
+
+    .. note::
+        Starbound uses 76 instead of 108 for Linux in the old GoldSource
+        style.
     """
 
     def __init__(self, value):
@@ -58,7 +62,7 @@ class Platform(object):
                 if value is None:
                     raise ValueError("Couldn't convert string {!r} to valid "
                                      "platform identifier".format(value))
-        if value not in {108, 76, 109, 111, 119}:
+        if value not in {76, 108, 109, 111, 119}:
             raise ValueError("Invalid platform identifier {!r}".format(value))
         self.value = value
 
@@ -68,8 +72,8 @@ class Platform(object):
 
     def __unicode__(self):
         return {
-            108: "Linux",
             76: "Linux",
+            108: "Linux",
             109: "Mac OS X",
             111: "Mac OS X",
             119: "Windows",
@@ -114,7 +118,9 @@ class Platform(object):
         """
         if not isinstance(other, Platform):
             other = Platform(other)
-        if self.value == 109 or self.value == 111:
+        if self.value == 76 or self.value == 108:
+            return other.value == 76 or other.value == 108
+        elif self.value == 109 or self.value == 111:
             return other.value == 109 or other.value == 111
         else:
             return self.value == other.value
@@ -123,6 +129,7 @@ class Platform(object):
     def os_name(self):
         """Convenience mapping to names returned by ``os.name``"""
         return {
+            76: "posix",
             108: "posix",
             109: "posix",
             111: "posix",
@@ -131,7 +138,6 @@ class Platform(object):
 
 
 Platform.LINUX = Platform(108)
-Platform.LINUXGS = Platform(76)
 Platform.MAC_OS_X = Platform(111)
 Platform.WINDOWS = Platform(119)
 
