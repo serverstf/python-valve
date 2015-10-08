@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013-2014 Oliver Ainsworth
+# Copyright (C) 2013-2015 Oliver Ainsworth
 
 import sys
 import textwrap
@@ -30,7 +30,7 @@ class PyTest(TestCommand):
 
 setup(
     name="python-valve",
-    version="0.0",
+    version="0.1.0",
     description=("Small library implementing "
                  "various parts of Steam's public interfaces"),
     author="Oliver Ainsworth",
@@ -48,4 +48,10 @@ setup(
     cmdclass={
         "test": PyTest,
     },
+    classifiers=[
+        "License :: OSI Approved :: MIT License",
+        "Development Status :: 4 - Beta",
+        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.4",
+    ],
 )
