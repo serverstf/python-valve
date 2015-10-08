@@ -19,6 +19,8 @@ class Platform(object):
     +-----+----------+
     | ID  | Platform |
     +=====+==========+
+    | 76  | Linux    |
+    +-----+----------+
     | 108 | Linux    |
     +-----+----------+
     | 109 | Mac OS X |
@@ -27,6 +29,10 @@ class Platform(object):
     +-----+----------+
     | 119 | Windows  |
     +-----+----------+
+
+    .. note::
+        Starbound uses 76 instead of 108 for Linux in the old GoldSource
+        style.
     """
 
     def __init__(self, value):
@@ -56,7 +62,7 @@ class Platform(object):
                 if value is None:
                     raise ValueError("Couldn't convert string {!r} to valid "
                                      "platform identifier".format(value))
-        if value not in {108, 109, 111, 119}:
+        if value not in {76, 108, 109, 111, 119}:
             raise ValueError("Invalid platform identifier {!r}".format(value))
         self.value = value
 
@@ -66,6 +72,7 @@ class Platform(object):
 
     def __unicode__(self):
         return {
+            76: "Linux",
             108: "Linux",
             109: "Mac OS X",
             111: "Mac OS X",
@@ -111,7 +118,9 @@ class Platform(object):
         """
         if not isinstance(other, Platform):
             other = Platform(other)
-        if self.value == 109 or self.value == 111:
+        if self.value == 76 or self.value == 108:
+            return other.value == 76 or other.value == 108
+        elif self.value == 109 or self.value == 111:
             return other.value == 109 or other.value == 111
         else:
             return self.value == other.value
@@ -120,6 +129,7 @@ class Platform(object):
     def os_name(self):
         """Convenience mapping to names returned by ``os.name``"""
         return {
+            76: "posix",
             108: "posix",
             109: "posix",
             111: "posix",
@@ -142,12 +152,18 @@ class ServerType(object):
     +-----+---------------+
     | ID  | Server type   |
     +=====+===============+
+    | 68  | Dedicated     |
+    +-----+---------------+
     | 100 | Dedicated     |
     +-----+---------------+
     | 108 | Non-dedicated |
     +-----+---------------+
     | 112 | SourceTV      |
     +-----+---------------+
+
+    .. note::
+        Starbound uses 68 instead of 100 for a dedicated server in the old
+        GoldSource style.
     """
 
     def __init__(self, value):
@@ -177,7 +193,7 @@ class ServerType(object):
                 if value is None:
                     raise ValueError("Couldn't convert string {!r} to valid "
                                      "server type identifier".format(value))
-        if value not in {100, 108, 112}:
+        if value not in {68, 100, 108, 112}:
             raise ValueError(
                 "Invalid server type identifier {!r}".format(value))
         self.value = value
@@ -188,6 +204,7 @@ class ServerType(object):
 
     def __unicode__(self):
         return {
+            68: "Dedicated",
             100: "Dedicated",
             108: "Non-Dedicated",
             112: "SourceTV",
@@ -224,7 +241,10 @@ class ServerType(object):
         """
         if not isinstance(other, ServerType):
             other = ServerType(other)
-        return self.value == other.value
+        if self.value == 68 or self.value == 100:
+            return other.value == 68 or other.value == 100
+        else:
+            return self.value == other.value
 
     @property
     def char(self):

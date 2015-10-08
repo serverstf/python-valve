@@ -12,7 +12,7 @@ from valve.source import util
 
 class TestPlatform(object):
 
-    @pytest.mark.parametrize("identifier", [108, 109, 111, 119])
+    @pytest.mark.parametrize("identifier", [76, 108, 109, 111, 119])
     def test_valid_numeric_identifer(self, identifier):
         platform = util.Platform(identifier)
         assert platform.value == identifier
@@ -22,6 +22,7 @@ class TestPlatform(object):
             util.Platform(50)
 
     @pytest.mark.parametrize(("identifier", "expected"), [
+        ("L", 76),
         ("l", 108),
         ("m", 109),
         ("o", 111),
@@ -59,6 +60,7 @@ class TestPlatform(object):
             util.Platform("")
 
     @pytest.mark.parametrize(("identifier", "string"), [
+        (76, "Linux"),
         (108, "Linux"),
         (109, "Mac OS X"),
         (111, "Mac OS X"),
@@ -69,6 +71,7 @@ class TestPlatform(object):
         assert six.text_type(platform) == string
 
     @pytest.mark.parametrize(("identifier", "string"), [
+        (76, b"Linux"),
         (108, b"Linux"),
         (109, b"Mac OS X"),
         (111, b"Mac OS X"),
@@ -78,12 +81,13 @@ class TestPlatform(object):
         platform = util.Platform(identifier)
         assert bytes(platform) == string
 
-    @pytest.mark.parametrize("identifier", [108, 109, 111, 119])
+    @pytest.mark.parametrize("identifier", [76, 108, 109, 111, 119])
     def test_to_integer(self, identifier):
         platform = util.Platform(identifier)
         assert int(platform) == identifier
 
     @pytest.mark.parametrize(("identifier", "os_name"), [
+        (76, "posix"),
         (108, "posix"),
         (109, "posix"),
         (111, "posix"),
@@ -94,6 +98,9 @@ class TestPlatform(object):
         assert platform.os_name == os_name
 
     @pytest.mark.parametrize(("platform", "other"), [
+        (util.Platform(76), util.Platform(76)),
+        (util.Platform(76), util.Platform(108)),  # Starbound
+        (util.Platform(108), util.Platform(76)),  # Starbound
         (util.Platform(108), util.Platform(108)),
         (util.Platform(109), util.Platform(109)),
         (util.Platform(111), util.Platform(111)),
@@ -105,6 +112,9 @@ class TestPlatform(object):
         assert platform == other
 
     @pytest.mark.parametrize(("platform", "other"), [
+        (util.Platform(76), 76),
+        (util.Platform(108), 76),  # Starbound
+        (util.Platform(76), 108),  # Starbound
         (util.Platform(108), 108),
         (util.Platform(109), 109),
         (util.Platform(111), 111),
@@ -116,6 +126,8 @@ class TestPlatform(object):
         assert platform == other
 
     @pytest.mark.parametrize(("platform", "other"), [
+        (util.Platform(76), "L"),
+        (util.Platform(76), "l"),  # Starbound
         (util.Platform(108), "l"),
         (util.Platform(109), "m"),
         (util.Platform(111), "o"),
@@ -127,6 +139,7 @@ class TestPlatform(object):
         assert platform == other
 
     @pytest.mark.parametrize(("platform", "other"), [
+        (util.Platform(76), "Linux"),
         (util.Platform(108), "Linux"),
         (util.Platform(109), "Mac OS X"),
         (util.Platform(111), "Mac OS X"),
@@ -148,6 +161,7 @@ class TestServerType(object):
             util.ServerType(42)
 
     @pytest.mark.parametrize(("identifier", "expected"), [
+        ("D", 68),
         ("d", 100),
         ("l", 108),
         ("p", 112),
@@ -184,6 +198,7 @@ class TestServerType(object):
             util.Platform("")
 
     @pytest.mark.parametrize(("identifier", "string"), [
+        (68, "Dedicated"),
         (100, "Dedicated"),
         (108, "Non-Dedicated"),
         (112, "SourceTV"),
@@ -193,6 +208,7 @@ class TestServerType(object):
         assert six.text_type(server_type) == string
 
     @pytest.mark.parametrize(("identifier", "string"), [
+        (68, b"Dedicated"),
         (100, b"Dedicated"),
         (108, b"Non-Dedicated"),
         (112, b"SourceTV"),
@@ -201,12 +217,15 @@ class TestServerType(object):
         server_type = util.ServerType(identifier)
         assert bytes(server_type) == string
 
-    @pytest.mark.parametrize("identifier", [100, 108, 112])
+    @pytest.mark.parametrize("identifier", [68, 100, 108, 112])
     def test_to_integer(self, identifier):
         server_type = util.ServerType(identifier)
         assert int(server_type) == identifier
 
     @pytest.mark.parametrize(("server_type", "other"), [
+        (util.ServerType(68), util.ServerType(68)),
+        (util.ServerType(68), util.ServerType(100)),  # Starbound
+        (util.ServerType(100), util.ServerType(68)),  # Starbound
         (util.ServerType(100), util.ServerType(100)),
         (util.ServerType(108), util.ServerType(108)),
         (util.ServerType(112), util.ServerType(112)),
@@ -215,6 +234,9 @@ class TestServerType(object):
         assert server_type == other
 
     @pytest.mark.parametrize(("server_type", "other"), [
+        (util.ServerType(68), 68),
+        (util.ServerType(100), 68),  # Starbound
+        (util.ServerType(68), 100),  # Starbound
         (util.ServerType(100), 100),
         (util.ServerType(108), 108),
         (util.ServerType(112), 112),
@@ -223,6 +245,8 @@ class TestServerType(object):
         assert server_type == other
 
     @pytest.mark.parametrize(("server_type", "other"), [
+        (util.ServerType(68), "D"),
+        (util.ServerType(68), "D"),  # Starbound
         (util.ServerType(100), "d"),
         (util.ServerType(108), "l"),
         (util.ServerType(112), "p"),
@@ -231,6 +255,7 @@ class TestServerType(object):
         assert server_type == other
 
     @pytest.mark.parametrize(("server_type", "other"), [
+        (util.ServerType(68), "Dedicated"),
         (util.ServerType(100), "Dedicated"),
         (util.ServerType(108), "Non-Dedicated"),
         (util.ServerType(112), "SourceTV"),
