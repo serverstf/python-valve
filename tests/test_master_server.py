@@ -4,7 +4,10 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
-import mock
+try:
+    import mock
+except ImportError:
+    import unittest.mock as mock
 import pytest
 
 from valve.source import master_server

@@ -6,7 +6,10 @@ from __future__ import (absolute_import,
 
 import inspect
 
-from mock import Mock
+try:
+    from mock import Mock
+except ImportError:
+    from unittest.mock import Mock
 import pytest
 import six
 

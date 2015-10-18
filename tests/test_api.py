@@ -8,7 +8,10 @@ import re
 import textwrap
 import types
 
-import mock
+try:
+    import mock
+except ImportError:
+    import unittest.mock as mock
 import pytest
 
 from valve.steam.api import interface
