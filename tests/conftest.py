@@ -77,8 +77,9 @@ def pytest_generate_tests(metafunc):
         msq = valve.source.master_server.MasterServerQuerier()
         server_addresses = []
         address_limit = metafunc.config.getoption("srcds_functional_limit")
+        region = metafunc.function._srcds_filter.pop('region', 'eu')
         try:
-            for address in msq.find(region="eu",
+            for address in msq.find(region=region,
                                     **metafunc.function._srcds_filter):
                 if address_limit:
                     if len(server_addresses) >= address_limit:

@@ -31,6 +31,15 @@ def test_tf2_info(address):
     assert info["folder"] == "tf"
     assert isinstance(info["folder"], six.text_type)
 
+    
+@pytest.srcds_functional(gamedir="tf")
+def test_tf2_rules(address):
+    try:
+        a2s = valve.source.a2s.ServerQuerier(address)
+        rules = a2s.get_rules()
+    except valve.source.a2s.NoResponseError:
+        pytest.skip("Timedout waiting for response")
+
 
 @pytest.srcds_functional(gamedir="cstrike")
 def test_css_ping(address):
@@ -140,3 +149,14 @@ def test_l4d2_info(address):
     assert info["app_id"] == 550
     assert info["folder"] == "left4dead2"
     assert isinstance(info["folder"], six.text_type)
+
+    
+# quake live
+@pytest.srcds_functional(region='rest', appid='282440')
+def test_ql_rules(address):
+    try:
+        a2s = valve.source.a2s.ServerQuerier(address)
+        rules = a2s.get_rules()
+    except valve.source.a2s.NoResponseError:
+        return
+    
