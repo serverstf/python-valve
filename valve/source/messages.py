@@ -518,12 +518,6 @@ class RulesRequest(Message):
 class RulesResponse(Message):
 
     fields = (
-        # A2S_RESPONSE misteriously seems to add a FF FF FF FF
-        # long to the beginning of the response which isn't
-        # mentioned on the wiki.
-        #
-        # Behaviour witnessed with TF2 server 94.23.226.200:2045
-        LongField("long"),
         ByteField("response_type", validators=[lambda x: x == 0x45]),
         ShortField("rule_count"),
         MessageDictField("rules",
@@ -532,6 +526,17 @@ class RulesResponse(Message):
                          MessageArrayField.value_of("rule_count"))
     )
 
+    @classmethod
+    def decode(cls, packet):
+        # A2S_RESPONSE misteriously seems to add a FF FF FF FF
+        # long to the beginning of the response which isn't
+        # mentioned on the wiki.
+        #
+        # Behaviour witnessed with TF2 server 94.23.226.200:2045
+        # As of 2015-11-22, Quake Live servers on steam do not
+        if packet.startswith(b'\xff\xff\xff\xff'):
+            packet = packet[4:]
+        return super(cls, RulesResponse).decode(packet)
 
 # For Master Server
 class MSAddressEntryPortField(MessageField):
