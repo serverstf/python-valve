@@ -30,7 +30,7 @@ class PyTest(TestCommand):
 
 setup(
     name="python-valve",
-    version="0.1.0",
+    version="0.1.1",
     description=("Small library implementing "
                  "various parts of Steam's public interfaces"),
     author="Oliver Ainsworth",
