@@ -34,14 +34,9 @@ running the map *ctf_2fort* and print out their addresses.
 
 .. code:: python
 
-    import valve.source.server
     import valve.source.master_server
 
     msq = valve.source.master_server.MasterServerQuerier()
-    try:
-        for address in msq.find(region=["eu", "as"],
-                                gamedir="tf",
-                                map="ctf_2fort"):
-            print "{0}:{1}".format(*address)
-    except valve.source.server.NoResponseError:
-        print "Master server request timed out!"
+    for address in msq.find(
+            region=["eu", "as"], gamedir="tf", map="ctf_2fort"):
+        print "{0}:{1}".format(*address)

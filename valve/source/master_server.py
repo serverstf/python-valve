@@ -41,6 +41,10 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
         a completely unfiltered set will still take a long time and be
         prone to timeouts.
 
+        .. note::
+            If a request times out then the iterator will terminate early.
+            Previous versions would propagate a :exc:`NoResponseError`.
+
         See :meth:`.find` for making filtered requests.
         """
         return self.find(region="all")
@@ -52,9 +56,14 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
         returned by the master server.
 
         Addresses are returned in batches therefore multiple requests may be
-        dispatched. Either of these requests may result in NoResponseError
-        being raised if a timeout occurs, therefore it may happen
-        mid-iteration.
+        dispatched. Because of this any of these requests may result in a
+        :exc:`NotResponseError` raised. In such circumstances the iterator
+        will exit early. Otherwise the iteration continues until the final
+        address is reached which is indicated by the master server returning
+        a 0.0.0.0:0 address.
+
+        .. note::
+            The terminating 0.0.0.0:0 is not yielded by the iterator.
 
         ``region`` should be a valid numeric region identifier and
         ``filter_string`` should be a formatted filter string as described
@@ -69,12 +78,17 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
             self.request(messages.MasterServerRequest(region=region,
                                                       address=last_addr,
                                                       filter=filter_string))
-            response = messages.MasterServerResponse.decode(
-                self.get_response())
-            for address in response["addresses"]:
-                last_addr = "{}:{}".format(address["host"], address["port"])
-                if not address.is_null:
-                    yield address["host"], address["port"]
+            try:
+                raw_response = self.get_response()
+            except a2s.NoResponseError:
+                return
+            else:
+                response = messages.MasterServerResponse.decode(raw_response)
+                for address in response["addresses"]:
+                    last_addr = "{}:{}".format(
+                        address["host"], address["port"])
+                    if not address.is_null:
+                        yield address["host"], address["port"]
 
     def _map_region(self, region):
         """Convert string to numeric region identifier

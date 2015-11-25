@@ -10,6 +10,7 @@ except ImportError:
     import unittest.mock as mock
 import pytest
 
+from valve.source import a2s
 from valve.source import master_server
 from valve.source import messages
 from valve.source import util
@@ -329,3 +330,13 @@ class TestQuery(object):
             ("8.8.8.8", 27015),
             ("8.8.4.4", 27015),
         ]
+
+    def test_no_response(self, msq, request_, response):
+        msq.get_response.side_effect = a2s.NoResponseError
+        assert list(msq._query(master_server.REGION_REST, "")) == []
+        assert request_.called
+        assert request_.call_args[1] == {
+            "region": master_server.REGION_REST,
+            "address": "0.0.0.0:0",
+            "filter": "",
+        }
