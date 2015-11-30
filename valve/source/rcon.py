@@ -1,295 +1,211 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013-2014 Oliver Ainsworth
 
-"""
-    Provides an interface to the Source Dedicated Server (SRCDS) remote
-    console (RCON), allow you to issue commands to a server remotely.
-"""
+"""Source Dedicated Server remote console (RCON) interface."""
 
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
-import errno
-import os
-import socket
-import struct
-import time
+import enum
 
 
-WOULDBLOCK = [errno.EAGAIN, errno.EWOULDBLOCK]
-if os.name == "nt":
-    WOULDBLOCK.append(errno.WSAEWOULDBLOCK)
+class RCONError(Exception):
+    """Base exception for all RCON-related errors."""
 
 
-class IncompleteMessageError(Exception):
-    pass
+class RCONCommunicationError(RCONError):
+    """Used for propagating socket-related errors."""
 
 
-class AuthenticationError(Exception):
-    pass
+class RCONTimeoutError(RCONError):
+    """Raised when a timeout occurs waiting for a response."""
 
 
-class NoResponseError(Exception):
-    pass
+class RCONAuthenticationError(RCONError):
+    """Raised for failed authentication."""
 
 
-class Message(object):
+class RCONMessageError(RCONError):
+    """Raised for errors encoding or decoding RCON messages."""
 
-    SERVERDATA_AUTH = 3
-    SERVERDATA_AUTH_RESPONSE = 2
-    SERVERDATA_EXECCOMAND = 2
-    SERVERDATA_RESPONSE_VALUE = 0
 
-    def __init__(self, id, type, body=""):
-        self.id = id
-        self.type = type
-        self.body = body
-        self.response = None
+class RCONMessage(object):
+    """Represents a RCON request or response."""
 
-    def __str__(self):
-        types = {
-            Message.SERVERDATA_AUTH: "SERVERDATA_AUTH",
-            Message.SERVERDATA_AUTH_RESPONSE: ("SERVERDATA_AUTH_RESPONSE/"
-                                               "SERVERDATA_EXECCOMAND"),
-            Message.SERVERDATA_RESPONSE_VALUE: "SERVERDATA_RESPONSE_VALUE"
-        }
-        return "{type} ({id}) '{body}'".format(
-            type=types.get(self.type, "INVALID"),
-            id=self.id,
-            body=" ".join([c.encode("hex") for c in self.body])
-        )
+    ENCODING = "ascii"
+
+    class Type(enum.IntEnum):
+        """Message types corresponding to ``SERVERDATA_`` constants."""
+
+        RESPONSE_VALUE = 0
+        AUTH_RESPONSE = 2
+        EXECCOMMAND = 2
+        AUTH = 3
+
+    def __init__(self, id_, type_, body_or_text):
+        self.id = id_
+        self.type = self.Type(type_)
+        if isinstance(body_or_text, bytes):
+            self.body = body_or_text
+        else:
+            self.body = b""
+            self.text = body_or_text
 
     @property
-    def size(self):
+    def text(self):
+        """Get the body of the message as Unicode.
+
+        :raises UnicodeDecodeError: if the body cannot be decoded as ASCII.
+
+        :returns: the body of the message as a Unicode string.
+
+        .. note::
+            It has been reported that some servers may not return valid
+            ASCII as they're documented to do so. Therefore you should
+            always handle the potential :exc:`UnicodeDecodeError`.
+
+            If the correct encoding is known you can manually decode
+            :attr:`body` for your self.
         """
-            Packet size in bytes, minus the 'size' fields (4 bytes).
+        return self.body.decode(self.ENCODING)
+
+    @text.setter
+    def text(self, text):
+        """Set the body of the message as Unicode.
+
+        This will attempt to encode the given text as ASCII and set it as the
+        body of the message.
+
+        :param str text: the Unicode string to set the body as.
+
+        :raises UnicodeEncodeError: if the string cannot be encoded as ASCII.
         """
-        return struct.calcsize(b"<ii") + len(self.body.encode("ascii")) + 2
+        self.body = text.encode(self.ENCODING)
 
     def encode(self):
-        """Encode the message to a bytestring
-
-        Each packed message inludes the payload size (in bytes,) message ID
-        and message type encoded into a 12 byte header. The header is followed
-        by a null-terimnated ASCII-encoded string and a further trailing null
-        terminator.
-        """
-        return (struct.pack(b"<iii", self.size, self.id, self.type) +
-                self.body.encode("ascii") + b"\x00\x00")
+        """Encode message to a bytestring."""
 
     @classmethod
-    def decode(cls, buffer):
-        """
-            Will attempt to decode a single message from a byte buffer,
-            returning a corresponding Message instance and the remaining
-            buffer contents if any.
+    def decode(self, buffer_):
+        """Decode a message from a bytestring.
 
-            If buffer is does not contain at least one full message,
-            IncompleteMessageError is raised.
+        This will attempt to decode a single message from the start of the
+        given buffer. If the buffer contains more than a single message then
+        this must be called multiple times.
+
+        :raises MessageError: if the buffer doesn't contain a valid message.
+
+        :returns: a tuple containing the decoded :class:`RCONMessage` and
+            the remnants of the buffer. If the buffer contained exactly one
+            message then the remaning buffer will be empty.
         """
 
-        if len(buffer) < struct.calcsize(b"<i"):
-            raise IncompleteMessageError
-        size = struct.unpack(b"<i", buffer[:4])[0]
-        if len(buffer) - struct.calcsize(b"<i") < size:
-            raise IncompleteMessageError
-        packet = buffer[:size + 4]
-        buffer = buffer[size + 4:]
-        id = struct.unpack(b"<i", packet[4:8])[0]
-        type = struct.unpack(b"<i", packet[8:12])[0]
-        body = packet[12:][:-2].decode("ascii", "ignore")
-        return cls(id, type, body), buffer
+
+class _ResponseBuffer(object):
+    """Utility class to buffer RCON responses."""
+
+    def __init__(self):
+        self._buffer = b""
+        self._responses = []
+        self._discard_next = 0
+
+    def _consume(self):
+        """Attempt to parse buffer into responses.
+
+        This may or may not consume part of the whole of the buffer.
+        """
+        while self._buffer:
+            try:
+                message, self._buffer = RCONMessage.decode(self._buffer)
+            except RCONMessageError:
+                return
+            else:
+                self._responses.append(message)
+
+    def feed(self, bytes_):
+        """Feed bytes into the buffer."""
+        self._buffer += bytes_
+        self._consume()
+
+    def discard(self):
+        """Discard the next message in the buffer.
+
+        If there are already responses in the buffer then the leftmost
+        one will be dropped from the buffer. However, if there's no
+        responses currently in the buffer, as soon as one is received it
+        will be immediately dropped.
+
+        This can be called multiple times to discard multiple responses.
+        """
+        if self._responses:
+            self._responses.pop(0)
+        else:
+            self._discard_next += 1
 
 
 class RCON(object):
+    """Represents a RCON connection."""
 
-    def __init__(self, address, password=None, timeout=10.0):
-        self.host = address[0]
-        self.port = address[1]
-        self.password = password
-        self.timeout = timeout
-        self._next_id = 1
-        self._read_buffer = b""
-        self._active_requests = {}
-        self._response = []
-        self._socket = None
-        self.is_authenticated = False
+    def __init__(self, address, password, timeout=None):
+        self._address = address
+        self._password = password
+        self._timeout = None
+        self._socket = ...
+        self._closed = False
+        self._responses = _ResponseBuffer()
 
     def __enter__(self):
-        """Connect and optionally authenticate to the server
-
-        Authentication will only be attempted if the :attr:`.password`
-        attribute is set.
-        """
         self.connect()
-        if self.password:
-            self.authenticate(self.password)
+        if self._password:
+            self.authenticate()
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        """Disconnect from the server"""
-        self.disconnect()
-        self.is_authenticated = False
-        self._next_id = 0
+    def __exit__(self, value, type_, traceback):
+        self.close()
 
     def __call__(self, command):
-        """Execute a command on the server
+        """Invoke a command.
 
-        This wraps :meth:`.execute` but returns the response body instead of
-        the request :class:`Message` object.
+        This is higher-level version of :meth:`execute`.
+
+        :returns: the response to the command as a Unicode string.
         """
-        return self.execute(command).response.body
 
     def connect(self):
-        """Connect to host, creating transport if necessary"""
-        if not self._socket:
-            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._socket.connect((self.host, self.port))
-        self._socket.settimeout(0.0)
+        """Create a connection to a server."""
 
-    def disconnect(self):
-        self._socket.close()
-        self.is_authenticated = False
+    def authenticate(self):
+        """Authenticate with the server."""
 
-    def request(self, type, body=u""):
-        """
-            Send a message to server.
-
-            If type is SEVERDATA_EXECCOMAND
-            an addtional SERVERDATA_RESPONSE_VALUE is sent in order
-            to facilitate correct processing of multi-packet responses.
-        """
-
-        request = Message(self._next_id, type, body)
-        self._active_requests[request.id] = request
-        self._next_id += 1
-        self._socket.sendall(request.encode())
-        # Must send a SERVERDATA_RESPONSE_VALUE after EXECCOMMAND
-        # in order to handle multi-packet responses as per
-        # https://developer.valvesoftware.com/wiki/RCON#Multiple-packet_Responses
-        if type == Message.SERVERDATA_EXECCOMAND:
-            self.request(Message.SERVERDATA_RESPONSE_VALUE)
-        return request
-
-    def process(self):
-        """
-            Reads all avilable data from socket and attempts to process
-            a response. Responses are automatically attached to their
-            corresponding request.
-        """
-
-        try:
-            self._read_buffer += self._socket.recv(4096)
-        except socket.error as exc:
-            if exc.errno not in WOULDBLOCK:
-                raise
-        response, self._read_buffer = Message.decode(self._read_buffer)
-        # Check if terminating RESPONSE_VALUE with body 00 01 00 00
-        if (response.type == Message.SERVERDATA_RESPONSE_VALUE and
-                response.body.encode("ascii") == b"\x00\x01\x00\x00"):
-            response = Message(self._response[0].id,
-                               self._response[0].type,
-                               "".join([r.body for r in self._response]))
-            self._active_requests[response.id].response = response
-            self._response = []
-            self._active_requests[response.id]
-        elif response.type == Message.SERVERDATA_RESPONSE_VALUE:
-            self._response.append(response)
-        elif response.type == Message.SERVERDATA_AUTH_RESPONSE:
-            self._active_requests[self._response[0].id].response = response
-            # Clear empty SERVERDATA_RESPONSE_VALUE sent before
-            # SERVERDATA_AUTH_RESPONSE
-            self._response = []
-            self._active_requests[response.id]
-
-    def response_to(self, request, timeout=None):
-        """
-            Returns a context manager that waits up to a given time for
-            a response to a specific request. Assumes the request has
-            actually been sent to an RCON server.
-
-            If the timeout period is exceeded, NoResponseError is raised.
-        """
-
-        class ResponseContextManager(object):
-
-            def __init__(self, rcon, request, timeout):
-                self.rcon = rcon
-                self.request = request
-                self.timeout = timeout
-
-            def __enter__(self):
-                time_left = self.timeout
-                while self.request.response is None:
-                    time_start = time.time()
-                    try:
-                        self.rcon.process()
-                    except IncompleteMessageError:
-                        pass
-                    time_left -= time.time() - time_start
-                    if time_left < 0:
-                        raise NoResponseError
-                return self.request.response
-
-            def __exit__(self, type, value, tb):
-                pass
-
-        if timeout is None:
-            timeout = self.timeout
-        return ResponseContextManager(self, request, timeout)
-
-    def authenticate(self, password):
-        """
-            Authenticates with the server using the given password.
-
-            Raises AuthenticationError if password is incorrect. Note
-            that multiple attempts with the wrong password will result
-            in the server automatically banning 'this' IP.
-        """
-        request = self.request(Message.SERVERDATA_AUTH, unicode(password))
-        with self.response_to(request) as response:
-            if response.id == -1:
-                raise AuthenticationError
-            self.is_authenticated = True
+    def close(self):
+        """Close connection to a server."""
+        self._closed = True
 
     def execute(self, command, block=True):
+        """Invoke a command.
+
+        Invokes the given command on the conncted server. By default this
+        will block (up to the timeout) for a response. This can be disabled
+        if you don't care about the response.
+
+        :param bool block: whether or not to wait for a response.
+
+        :raises RCONTimeoutError: if the timeout is reached waiting for a
+            response.
+
+        :returns: the response to the command as a :class:`RCONMessage` or
+            ``None`` depending on whether ``block`` was ``True`` or not.
         """
-            Executes a SRCDS console command.
-
-            Returns the Message object that makes up the request sent
-            to the server. If block is True, the response attribute
-            will be set, unless a NoResposneError was raised whilst
-            waiting for a response.
-
-            If block is False, calls must be made to process() until
-            a response is recieved. E.g. use response_to().
-
-            Requires that the client is authenticated, otherwise an
-            AuthenticationError is raised.
-        """
-
-        if not self.is_authenticated:
-            raise AuthenticationError
-        request = self.request(Message.SERVERDATA_EXECCOMAND, unicode(command))
-        if block:
-            with self.response_to(request):
-                pass
-        return request
 
 
 def shell(rcon=None):
+    """A simple interactive RCON shell.
 
-    def prompt(prompt=None):
-        if prompt:
-            return raw_input("{}: ".format(prompt))
-        else:
-            return raw_input("{}:{}>".format(rcon.host, rcon.port))
+    An existing, connected and authenticated :class:`RCON` object can be
+    given otherwise the shell will prompt for connection details.
 
-    if rcon is None:
-        rcon = RCON((prompt("host"), int(prompt("port"))))
-    if not rcon.is_authenticated:
-        rcon.authenticate(prompt("password"))
-    while True:
-        cmd = rcon.execute(prompt())
-        with rcon.response_to(cmd) as response:
-            print(response.body)
+    Once connected the shell simply dispatches commands and prints the
+    response to stdout.
+
+    :param rcon: the :class:`RCON` object to use for issuing commands
+        or ``None``.
+    """
