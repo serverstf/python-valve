@@ -40,3 +40,42 @@ class TestRCONMessage(object):
         message = valve.source.rcon.RCONMessage(0, 0, b"")
         with pytest.raises(UnicodeEncodeError):
             message.text = "\u00ff"
+
+    def test_encode(self):
+        message = valve.source.rcon.RCONMessage(0, 2, b"foo")
+        assert message.encode() == (
+            b"\x0D\x00\x00\x00"  # Size; 4 + 4 + 3 + 2 = 0xD
+            b"\x00\x00\x00\x00"  # ID
+            b"\x02\x00\x00\x00"  # Type
+            b"foo"               # Body
+            b"\x00\x00"          # Terminators
+        )
+
+    def test_decode(self):
+        message, remainder = valve.source.rcon.RCONMessage.decode(
+            b"\x0D\x00\x00\x00"          # Size
+            b"\x00\x00\x00\x00"          # ID
+            b"\x02\x00\x00\x00"          # Type
+            b"foo"                       # Body
+            b"\x00\x00"                  # Terminators
+            b"\xAA\xBB\xCC\xDD\xEE\xFF"  # Remainder
+        )
+        assert message.id == 0
+        assert message.type == 2
+        assert isinstance(message.type, message.Type)
+        assert message.body == b"foo"
+        assert remainder == b"\xAA\xBB\xCC\xDD\xEE\xFF"
+
+    @pytest.mark.parametrize("buffer_", [
+        b"",
+        b"\x00",
+        b"\x00\x00",
+        b"\x00\x00\x00",
+    ])
+    def test_decode_too_short(self, buffer_):
+        with pytest.raises(valve.source.rcon.RCONMessageError):
+            valve.source.rcon.RCONMessage.decode(buffer_)
+
+    def test_decode_incomplete(self):
+        with pytest.raises(valve.source.rcon.RCONMessageError):
+            valve.source.rcon.RCONMessage.decode(b"\xFF\x00\x00\x00")

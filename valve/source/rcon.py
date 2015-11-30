@@ -8,6 +8,7 @@ from __future__ import (absolute_import,
 import enum
 import logging
 import socket
+import struct
 
 
 log = logging.getLogger(__name__)
@@ -88,9 +89,12 @@ class RCONMessage(object):
 
     def encode(self):
         """Encode message to a bytestring."""
+        terminated_body = self.body + b"\x00\x00"
+        size = struct.calcsize("<ii") + len(terminated_body)
+        return struct.pack("<iii", size, self.id, self.type) + terminated_body
 
     @classmethod
-    def decode(self, buffer_):
+    def decode(cls, buffer_):
         """Decode a message from a bytestring.
 
         This will attempt to decode a single message from the start of the
@@ -103,6 +107,25 @@ class RCONMessage(object):
             the remnants of the buffer. If the buffer contained exactly one
             message then the remaning buffer will be empty.
         """
+        size_field_length = struct.calcsize("<i")
+        if len(buffer_) < size_field_length:
+            raise RCONMessageError(
+                "Need at least {} bytes; got "
+                "{}".format(size_field_length, len(buffer_)))
+        size_field, raw_message = \
+            buffer_[:size_field_length], buffer_[size_field_length:]
+        size = struct.unpack("<i", size_field)[0]
+        if len(raw_message) < size:
+            raise RCONMessageError(
+                "Message is {} bytes long "
+                "but got {}".format(size, len(raw_message)))
+        message, remainder = raw_message[:size], raw_message[size:]
+        fixed_fields_size = struct.calcsize("<ii")
+        fixed_fields, body_and_terminators = \
+            message[:fixed_fields_size], message[fixed_fields_size:]
+        id_, type_ = struct.unpack("<ii", fixed_fields)
+        body = body_and_terminators[:-2]
+        return cls(id_, type_, body), remainder
 
 
 class _ResponseBuffer(object):
