@@ -1,8 +1,11 @@
-*.pyc
+.cache/
+.tox/
 _build/
 build/
 dist/
-*.egg*
 htmlcov/
+
 .coverage
-.tox/
+
+*.pyc
+*.egg*
