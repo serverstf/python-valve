@@ -1,0 +1,13 @@
+[MESSAGES CONTROL]
+disable = locally-disabled,fixme
+
+[BASIC]
+good-names = i,j,k,_,x,y,ip
+const-rgx = (([A-Z_][A-Z0-9_]*)|(__.*__)|(log))$
+
+[FORMAT]
+max-line-length = 79
+max-module-lines = 2000
+
+[REPORTS]
+reports = no

@@ -44,6 +44,11 @@ setup(
         "pytest",
         "mock==1.0.1",
     ],
+    extras_require={
+        "development": [
+            "pylint",
+        ],
+    },
     license="MIT License",
     cmdclass={
         "test": PyTest,
