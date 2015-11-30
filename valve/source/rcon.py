@@ -6,6 +6,11 @@ from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
 import enum
+import logging
+import socket
+
+
+log = logging.getLogger(__name__)
 
 
 class RCONError(Exception):
@@ -148,15 +153,14 @@ class RCON(object):
     def __init__(self, address, password, timeout=None):
         self._address = address
         self._password = password
-        self._timeout = None
-        self._socket = ...
+        self._timeout = timeout
+        self._socket = None
         self._closed = False
         self._responses = _ResponseBuffer()
 
     def __enter__(self):
         self.connect()
-        if self._password:
-            self.authenticate()
+        self.authenticate()
         return self
 
     def __exit__(self, value, type_, traceback):
@@ -171,14 +175,31 @@ class RCON(object):
         """
 
     def connect(self):
-        """Create a connection to a server."""
+        """Create a connection to a server.
+
+        :raises RCONError: if the connection has already been made.
+        """
+        if self._closed or self._socket:
+            raise RCONError("Cannot connect after closing previous "
+                            "connection or whilst already connected")
+        log.debug("Connecting to %s", self._address)
+        self._socket = socket.socket(
+            socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
+        self._socket.connect(self._address)
 
     def authenticate(self):
         """Authenticate with the server."""
 
     def close(self):
-        """Close connection to a server."""
+        """Close connection to a server.
+
+        :raises RCONError: if the connection has not yet been made.
+        """
+        if not self._socket:
+            raise RCONError(
+                "Cannot close connection that hasn't been created yet")
         self._closed = True
+        self._socket.close()
 
     def execute(self, command, block=True):
         """Invoke a command.
