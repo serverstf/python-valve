@@ -29,7 +29,15 @@ class RCONTimeoutError(RCONError):
 
 
 class RCONAuthenticationError(RCONError):
-    """Raised for failed authentication."""
+    """Raised for failed authentication.
+
+    :ivar bool banned: signifies whether the authentication failed due to
+        being banned or for merely providing the wrong password.
+    """
+
+    def __init__(self, banned=False):
+        super().__init__("Banned" if banned else "Wrong password")
+        self.banned = banned
 
 
 class RCONMessageError(RCONError):
@@ -50,7 +58,7 @@ class RCONMessage(object):
         AUTH = 3
 
     def __init__(self, id_, type_, body_or_text):
-        self.id = id_
+        self.id = int(id_)
         self.type = self.Type(type_)
         if isinstance(body_or_text, bytes):
             self.body = body_or_text
@@ -222,10 +230,36 @@ class RCON(object):
         return self._authenticated
 
     def _request(self, type_, body):
+        """Send a request to the server.
+
+        This sends an encoded message with the given type and body to the
+        server. The sent message will have an ID of zero.
+
+        :param RCONMessage.Type type_: the type of message to send.
+        :param body: the body of the message to send as either a bytestring
+            or Unicode string.
+        """
         request = RCONMessage(0, type_, body)
         self._socket.sendall(request.encode())
 
     def _receive(self, count=1):
+        """Receive messages from the server.
+
+        This will wait up to the configured timeout for the given number of
+        messages to be recieved from the server. If there is any kind of
+        communication error or the timeout is reached then the connection is
+        closed.
+
+        :param int count: the number of messages to wait for.
+
+        :raises RCONCommunicationError: if the socket is closed by the
+            server or for any other unexpected socket-related error.
+        :raises RCONTimeoutError: if the desired number of messages are
+            not recieved in the configured timeout.
+
+        :returns: a tuple containing ``count`` number of :class:`RCONMessage`
+            that were received.
+        """
         responses = []
         time_start = time.monotonic()
         while (self._timeout is None
@@ -233,6 +267,7 @@ class RCON(object):
             try:
                 i_bytes = self._socket.recv(4096)
             except socket.error:
+                self.close()
                 raise RCONCommunicationError
             if not i_bytes:
                 self.close()
@@ -245,7 +280,7 @@ class RCON(object):
             else:
                 responses.append(response)
                 if len(responses) == count:
-                    return responses
+                    return tuple(responses)
         self.close()
         raise RCONTimeoutError
 
@@ -263,7 +298,31 @@ class RCON(object):
         self._socket.connect(self._address)
 
     def authenticate(self):
-        """Authenticate with the server."""
+        """Authenticate with the server.
+
+        This sends an authentication message to the connected server
+        containing the password. If the password is correct the server
+        sends back an acknowledgement and will allow all subsequent
+        commands to be executed.
+
+        However, if the password is wrong the server will either notify
+        the client or immediately drop the connection depending on whether
+        the client IP has been banned or not. In either case, the client
+        connection will be closed and an exception raised.
+
+        .. note::
+            Client banning IP banning happens automatically after a few
+            failed attempts at authentication. Assuming you can direct
+            access to the server's console you can unban the client IP
+            using the ``removeip`` command::
+
+                Banning xxx.xxx.xxx.xx for rcon hacking attempts
+                ] removeip xxx.xxx.xxx.xxx
+                removeip:  filter removed for xxx.xxx.xxx.xxx
+
+        :raises RCONAuthenticationError: if authentication failed, either
+            due to being banned or providing the wrong password.
+        """
         if self._closed or not self._socket:
             raise RCONError(
                 "Cannot authenticate whilst not connected to a server")
@@ -273,10 +332,10 @@ class RCON(object):
             #       completely empty (all zero) -- are sent.
             _, response = self._receive(2)
         except RCONCommunicationError:
-            raise RCONAuthenticationError(
-                "Server closed connection; you might be banned")
+            raise RCONAuthenticationError(True)
         else:
             if response.id == -1:
+                self.close()
                 raise RCONAuthenticationError
             self._authenticated = True
 
