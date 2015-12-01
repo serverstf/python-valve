@@ -6,9 +6,11 @@ from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
 import enum
+import errno
 import logging
 import socket
 import struct
+import time
 
 
 log = logging.getLogger(__name__)
@@ -55,6 +57,10 @@ class RCONMessage(object):
         else:
             self.body = b""
             self.text = body_or_text
+
+    def __repr__(self):
+        return ("<{0.__class__.__name__} "
+                "{0.id} {0.type.name} {1}B>").format(self, len(self.body))
 
     @property
     def text(self):
@@ -136,10 +142,21 @@ class _ResponseBuffer(object):
         self._responses = []
         self._discard_next = 0
 
+    def pop(self):
+        """Pop first received message from the buffer.
+
+        :raises RCONError: if there are no whole complete in the buffer.
+
+        :returns: the oldest response in the buffer as a :class:`RCONMessage`.
+        """
+        if not self._responses:
+            raise RCONError("Response buffer is empty")
+        return self._responses.pop(0)
+
     def _consume(self):
         """Attempt to parse buffer into responses.
 
-        This may or may not consume part of the whole of the buffer.
+        This may or may not consume part or the whole of the buffer.
         """
         while self._buffer:
             try:
@@ -151,6 +168,7 @@ class _ResponseBuffer(object):
 
     def feed(self, bytes_):
         """Feed bytes into the buffer."""
+        print(" ".join("{:02x}".format(b) for b in bytes_))
         self._buffer += bytes_
         self._consume()
 
@@ -176,7 +194,8 @@ class RCON(object):
     def __init__(self, address, password, timeout=None):
         self._address = address
         self._password = password
-        self._timeout = timeout
+        self._timeout = timeout if timeout else None
+        self._authenticated = False
         self._socket = None
         self._closed = False
         self._responses = _ResponseBuffer()
@@ -197,6 +216,39 @@ class RCON(object):
         :returns: the response to the command as a Unicode string.
         """
 
+    @property
+    def is_authenticated(self):
+        """Determine if the connection is authenticated."""
+        return self._authenticated
+
+    def _request(self, type_, body):
+        request = RCONMessage(0, type_, body)
+        self._socket.sendall(request.encode())
+
+    def _receive(self, count=1):
+        responses = []
+        time_start = time.monotonic()
+        while (self._timeout is None
+                or time.monotonic() - time_start < self._timeout):
+            try:
+                i_bytes = self._socket.recv(4096)
+            except socket.error:
+                raise RCONCommunicationError
+            if not i_bytes:
+                self.close()
+                raise RCONCommunicationError
+            self._responses.feed(i_bytes)
+            try:
+                response = self._responses.pop()
+            except RCONError:
+                continue
+            else:
+                responses.append(response)
+                if len(responses) == count:
+                    return responses
+        self.close()
+        raise RCONTimeoutError
+
     def connect(self):
         """Create a connection to a server.
 
@@ -212,6 +264,21 @@ class RCON(object):
 
     def authenticate(self):
         """Authenticate with the server."""
+        if self._closed or not self._socket:
+            raise RCONError(
+                "Cannot authenticate whilst not connected to a server")
+        self._request(RCONMessage.Type.AUTH, self._password)
+        try:
+            # TODO: Understand why two responses -- the first being
+            #       completely empty (all zero) -- are sent.
+            _, response = self._receive(2)
+        except RCONCommunicationError:
+            raise RCONAuthenticationError(
+                "Server closed connection; you might be banned")
+        else:
+            if response.id == -1:
+                raise RCONAuthenticationError
+            self._authenticated = True
 
     def close(self):
         """Close connection to a server.
