@@ -1,11 +1,18 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013-2015 Oliver Ainsworth
 
 import sys
 import textwrap
 
 from setuptools import setup, find_packages
 from setuptools.command.test import test as TestCommand
+
+
+install_requires = [
+    "six>=1.6",
+    "requests>=2.0",
+]
+if sys.version_info[0] == 2:
+    install_requires.append("enum34>=1.1")
 
 
 class PyTest(TestCommand):
@@ -36,10 +43,7 @@ setup(
     author="Oliver Ainsworth",
     author_email="ottajay@googlemail.com",
     packages=find_packages(),
-    install_requires=[
-        "six>=1.6",
-        "requests>=2.0",
-    ],
+    install_requires=install_requires,
     tests_require=[
         "pytest",
         "mock==1.0.1",
