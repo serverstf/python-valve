@@ -172,7 +172,10 @@ class _ResponseBuffer(object):
             except RCONMessageError:
                 return
             else:
-                self._responses.append(message)
+                if self._discard_next == 0:
+                    self._responses.append(message)
+                else:
+                    self._discard_next -= 1
 
     def feed(self, bytes_):
         """Feed bytes into the buffer."""
@@ -250,6 +253,23 @@ class RCON(object):
         request = RCONMessage(0, type_, body)
         self._socket.sendall(request.encode())
 
+    def _read(self):
+        """Read bytes from the socket into the response buffer.
+
+        :raises RCONCommunicationError: if the socket is closed by the
+            server or for any other unexpected socket-related error. In
+            such cases the connection will also be closed.
+        """
+        try:
+            i_bytes = self._socket.recv(4096)
+        except socket.error:
+            self.close()
+            raise RCONCommunicationError
+        if not i_bytes:
+            self.close()
+            raise RCONCommunicationError
+        self._responses.feed(i_bytes)
+
     def _receive(self, count=1):
         """Receive messages from the server.
 
@@ -272,15 +292,7 @@ class RCON(object):
         time_start = time.monotonic()
         while (self._timeout is None
                 or time.monotonic() - time_start < self._timeout):
-            try:
-                i_bytes = self._socket.recv(4096)
-            except socket.error:
-                self.close()
-                raise RCONCommunicationError
-            if not i_bytes:
-                self.close()
-                raise RCONCommunicationError
-            self._responses.feed(i_bytes)
+            self._read()
             try:
                 response = self._responses.pop()
             except RCONError:
@@ -378,7 +390,11 @@ class RCON(object):
             ``None`` depending on whether ``block`` was ``True`` or not.
         """
         self._request(RCONMessage.Type.EXECCOMMAND, command)
-        return self._receive(1)[0]
+        if block:
+            return self._receive(1)[0]
+        else:
+            self._responses.discard()
+            self._read()
 
 
 def shell(rcon=None):
