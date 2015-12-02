@@ -219,10 +219,18 @@ class RCON(object):
     def __call__(self, command):
         """Invoke a command.
 
-        This is higher-level version of :meth:`execute`.
+        This is higher-level version of :meth:`execute` that always blocks
+        and only returns the response body.
+
+        :raises RCONMEssageError: if the response body couldn't be decoded
+            into a Unicode string.
 
         :returns: the response to the command as a Unicode string.
         """
+        try:
+            return self.execute(command).text
+        except UnicodeDecodeError as exc:
+            raise RCONMessageError("Couldn't decode response: {}".format(exc))
 
     @property
     def is_authenticated(self):
@@ -357,14 +365,20 @@ class RCON(object):
         will block (up to the timeout) for a response. This can be disabled
         if you don't care about the response.
 
+        :param str command: the command to execute.
         :param bool block: whether or not to wait for a response.
 
+        :raises RCONCommunicationError: if the socket is closed or in any
+            other erroneous state whilst issuing the request or receiving
+            the response.
         :raises RCONTimeoutError: if the timeout is reached waiting for a
             response.
 
         :returns: the response to the command as a :class:`RCONMessage` or
             ``None`` depending on whether ``block`` was ``True`` or not.
         """
+        self._request(RCONMessage.Type.EXECCOMMAND, command)
+        return self._receive(1)[0]
 
 
 def shell(rcon=None):
