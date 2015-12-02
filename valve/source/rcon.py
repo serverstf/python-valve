@@ -143,12 +143,34 @@ class RCONMessage(object):
 
 
 class _ResponseBuffer(object):
-    """Utility class to buffer RCON responses."""
+    """Utility class to buffer RCON responses.
+
+    This class strictly handles multi-part responses and rolls them up
+    into a single response automatically. The end of a multi-part response
+    is indicated by an empty ``RESPONSE_VALUE`` immediately followed by
+    another with a body of ``0x00010000``. In order to prompt a server to
+    send these terminators an empty ``RESPONSE_VALUE`` must be *sent*
+    immediately after an ``EXECCOMMAND``.
+
+    https://developer.valvesoftware.com/wiki/RCON#Multiple-packet_Responses
+
+    .. note::
+        Multi-part responses are only applicable to ``EXECCOMAND`` requests.
+
+    In addition to handling multi-part responses transparently this class
+    provides the ability to :meth:`discard` incoming messages. When a
+    message is discarded it will be parsed from the buffer but then
+    silently dropped, meaning it cannot be retrieved via :meth:`pop`.
+
+    Message discarding works with multi-responses but it only applies to
+    the complete response, not the constituent parts.
+    """
 
     def __init__(self):
         self._buffer = b""
         self._responses = []
-        self._discard_next = 0
+        self._partial_responses = []
+        self._discard_count = 0
 
     def pop(self):
         """Pop first received message from the buffer.
@@ -161,6 +183,38 @@ class _ResponseBuffer(object):
             raise RCONError("Response buffer is empty")
         return self._responses.pop(0)
 
+    def clear(self):
+        """Clear the buffer.
+
+        This clears the byte buffer, response buffer, partial response
+        buffer and the discard counter.
+        """
+        log.debug(
+            "Buffer cleared; %i bytes, %i messages, %i parts, %i discarded",
+            len(self._buffer),
+            len(self._responses),
+            len(self._partial_responses),
+            self._discard_count,
+        )
+        self._buffer = b""
+        del self._responses[:]
+        del self._partial_responses[:]
+        self._discard_count = 0
+
+    def _enqueue_or_discard(self, message):
+        """Enqueue a message for retrieval or discard it.
+
+        If the discard counter is zero then the message will be added to
+        the complete responses buffer. Otherwise the message is dropped
+        and the discard counter is decremented.
+        """
+        if self._discard_count == 0:
+            log.debug("Enqueuing message %r", message)
+            self._responses.append(message)
+        else:
+            log.debug("Discarding message %r", message)
+            self._discard_count -= 1
+
     def _consume(self):
         """Attempt to parse buffer into responses.
 
@@ -172,14 +226,26 @@ class _ResponseBuffer(object):
             except RCONMessageError:
                 return
             else:
-                if self._discard_next == 0:
-                    self._responses.append(message)
+                if message.type is message.Type.RESPONSE_VALUE:
+                    log.debug("Recevied message part %r", message)
+                    self._partial_responses.append(message)
+                    if len(self._partial_responses) >= 2:
+                        penultimate, last = self._partial_responses[-2:]
+                        if (not penultimate.body
+                                and last.body == b"\x00\x01\x00\x00"):
+                            self._enqueue_or_discard(RCONMessage(
+                                self._partial_responses[0].id,
+                                RCONMessage.Type.RESPONSE_VALUE,
+                                b"".join(part.body for part
+                                         in self._partial_responses[:-2]),
+                            ))
                 else:
-                    self._discard_next -= 1
+                    if self._partial_responses:
+                        log.warning("Unexpected message %r", message)
+                    self._enqueue_or_discard(message)
 
     def feed(self, bytes_):
         """Feed bytes into the buffer."""
-        # print(" ".join("{:02x}".format(b) for b in bytes_))
         self._buffer += bytes_
         self._consume()
 
@@ -196,7 +262,7 @@ class _ResponseBuffer(object):
         if self._responses:
             self._responses.pop(0)
         else:
-            self._discard_next += 1
+            self._discard_count += 1
 
 
 class RCON(object):
@@ -348,12 +414,13 @@ class RCON(object):
                 "Cannot authenticate whilst not connected to a server")
         self._request(RCONMessage.Type.AUTH, self._password)
         try:
-            # TODO: Understand why two responses -- the first being
-            #       completely empty (all zero) -- are sent.
-            _, response = self._receive(2)
+            response = self._receive(1)[0]
         except RCONCommunicationError:
             raise RCONAuthenticationError(True)
         else:
+            # TODO: Understand why two responses -- the first being
+            #       completely empty (all zero) -- are sent.
+            self._responses.clear()
             if response.id == -1:
                 self.close()
                 raise RCONAuthenticationError
@@ -392,11 +459,7 @@ class RCON(object):
         self._request(RCONMessage.Type.EXECCOMMAND, command)
         self._request(RCONMessage.Type.RESPONSE_VALUE, "")
         if block:
-            responses = []
-            while not responses or responses[-1] != b"\x00\x01\x00\x00":
-                responses.append(self._receive(1)[0].body)
-            return RCONMessage(
-                0, RCONMessage.Type.RESPONSE_VALUE, b"".join(responses))
+            return self._receive(1)[0]
         else:
             self._responses.discard()
             self._read()
