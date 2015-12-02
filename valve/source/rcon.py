@@ -179,7 +179,7 @@ class _ResponseBuffer(object):
 
     def feed(self, bytes_):
         """Feed bytes into the buffer."""
-        print(" ".join("{:02x}".format(b) for b in bytes_))
+        # print(" ".join("{:02x}".format(b) for b in bytes_))
         self._buffer += bytes_
         self._consume()
 
@@ -390,8 +390,13 @@ class RCON(object):
             ``None`` depending on whether ``block`` was ``True`` or not.
         """
         self._request(RCONMessage.Type.EXECCOMMAND, command)
+        self._request(RCONMessage.Type.RESPONSE_VALUE, "")
         if block:
-            return self._receive(1)[0]
+            responses = []
+            while not responses or responses[-1] != b"\x00\x01\x00\x00":
+                responses.append(self._receive(1)[0].body)
+            return RCONMessage(
+                0, RCONMessage.Type.RESPONSE_VALUE, b"".join(responses))
         else:
             self._responses.discard()
             self._read()
