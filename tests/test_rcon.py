@@ -83,3 +83,119 @@ class TestRCONMessage(object):
     def test_decode_incomplete(self):
         with pytest.raises(valve.source.rcon.RCONMessageError):
             valve.source.rcon.RCONMessage.decode(b"\xFF\x00\x00\x00")
+
+
+class TestResponseBuffer(object):
+
+    def test_pop_empty(self):
+        buffer_ = valve.source.rcon._ResponseBuffer()
+        with pytest.raises(valve.source.rcon.RCONError):
+            buffer_.pop()
+
+    def test_feed_incomplete(self):
+        auth_response = (
+            b"\x0A\x00\x00\x00"  # Size
+            b"\x00\x00\x00\x00"  # ID
+            b"\x02\x00\x00\x00"  # Type
+            b""                  # Body
+            b"\x00\x00"          # Terminators
+        )
+        buffer_ = valve.source.rcon._ResponseBuffer()
+        buffer_.feed(auth_response[:5])
+        buffer_.feed(auth_response[5:])
+        message = buffer_.pop()
+        assert message.id == 0
+        assert message.type is message.Type.AUTH_RESPONSE
+        assert message.body == b""
+
+    def test_multi_part_response(self):
+        part = (
+            b"\x0D\x00\x00\x00"  # Size
+            b"\x05\x00\x00\x00"  # ID
+            b"\x00\x00\x00\x00"  # Type
+            b"bar"               # Body
+            b"\x00\x00"          # Terminators
+        )
+        empty = (
+            b"\x0A\x00\x00\x00"  # Size
+            b"\x05\x00\x00\x00"  # ID
+            b"\x00\x00\x00\x00"  # Type
+            b""                  # Body
+            b"\x00\x00"          # Terminators
+        )
+        terminator = (
+            b"\x0E\x00\x00\x00"  # Size
+            b"\x05\x00\x00\x00"  # ID
+            b"\x00\x00\x00\x00"  # Type
+            b"\x00\x01\x00\x00"  # Body
+            b"\x00\x00"          # Terminators
+        )
+        buffer_ = valve.source.rcon._ResponseBuffer()
+        buffer_.feed(part)
+        buffer_.feed(part)
+        buffer_.feed(empty)
+        buffer_.feed(terminator)
+        message = buffer_.pop()
+        assert message.id == 5
+        assert message.type is message.Type.RESPONSE_VALUE
+        assert message.body == b"barbar"  # Black sheep ...
+
+    def test_discard_before(self):
+        auth_response = (
+            b"\x0A\x00\x00\x00"  # Size
+            b"\x00\x00\x00\x00"  # ID
+            b"\x02\x00\x00\x00"  # Type
+            b""                  # Body
+            b"\x00\x00"          # Terminators
+        )
+        buffer_ = valve.source.rcon._ResponseBuffer()
+        buffer_.discard()
+        buffer_.feed(auth_response)
+        with pytest.raises(valve.source.rcon.RCONError):
+            buffer_.pop()
+
+    def test_discard_after(self):
+        auth_response = (
+            b"\x0A\x00\x00\x00"  # Size
+            b"\x00\x00\x00\x00"  # ID
+            b"\x02\x00\x00\x00"  # Type
+            b""                  # Body
+            b"\x00\x00"          # Terminators
+        )
+        buffer_ = valve.source.rcon._ResponseBuffer()
+        buffer_.feed(auth_response)
+        assert len(buffer_._responses) == 1
+        buffer_.discard()
+        with pytest.raises(valve.source.rcon.RCONError):
+            buffer_.pop()
+
+    def test_clear(self):
+        part = (
+            b"\x0D\x00\x00\x00"  # Size
+            b"\x05\x00\x00\x00"  # ID
+            b"\x00\x00\x00\x00"  # Type
+            b"bar"               # Body
+            b"\x00\x00"          # Terminators
+        )
+        auth_response = (
+            b"\x0A\x00\x00\x00"  # Size
+            b"\x00\x00\x00\x00"  # ID
+            b"\x02\x00\x00\x00"  # Type
+            b""                  # Body
+            b"\x00\x00"          # Terminators
+            b"remainder"         # Remainder
+        )
+        buffer_ = valve.source.rcon._ResponseBuffer()
+        buffer_.feed(part)
+        buffer_.feed(auth_response)
+        assert buffer_._buffer
+        assert buffer_._partial_responses
+        assert buffer_._responses
+        buffer_.clear()
+        assert buffer_._buffer == b""
+        assert buffer_._partial_responses == []
+        assert buffer_._responses == []
+        buffer_.discard()
+        assert buffer_._discard_count == 1
+        buffer_.clear()
+        assert buffer_._discard_count == 0
