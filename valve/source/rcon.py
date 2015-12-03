@@ -12,6 +12,8 @@ import socket
 import struct
 import time
 
+import six
+
 
 log = logging.getLogger(__name__)
 
@@ -60,7 +62,7 @@ class RCONMessage(object):
     def __init__(self, id_, type_, body_or_text):
         self.id = int(id_)
         self.type = self.Type(type_)
-        if isinstance(body_or_text, bytes):
+        if isinstance(body_or_text, six.binary_type):
             self.body = body_or_text
         else:
             self.body = b""

@@ -4,6 +4,7 @@ from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
 import pytest
+import six
 
 import valve.source.rcon
 
@@ -19,16 +20,19 @@ class TestRCONMessage(object):
         assert message.id == 0
         assert isinstance(message.type, valve.source.rcon.RCONMessage.Type)
         assert message.body == b"foo"
+        assert isinstance(message.body, six.binary_type)
 
     def test_init_unicode(self):
         message = valve.source.rcon.RCONMessage(0, 0, b"foo".decode("ascii"))
         assert message.id == 0
         assert isinstance(message.type, valve.source.rcon.RCONMessage.Type)
         assert message.body == b"foo"
+        assert isinstance(message.body, six.binary_type)
 
     def test_get_text(self):
         message = valve.source.rcon.RCONMessage(0, 0, "foo".encode("ascii"))
         assert message.text == "foo"
+        assert isinstance(message.text, six.text_type)
 
     def test_get_text_bad(self):
         message = valve.source.rcon.RCONMessage(0, 0, b"\xff")
@@ -39,6 +43,7 @@ class TestRCONMessage(object):
         message = valve.source.rcon.RCONMessage(0, 0, b"")
         message.text = "foo"
         assert message.body == "foo".encode("ascii")
+        assert isinstance(message.body, six.binary_type)
 
     def test_set_text_bad(self):
         message = valve.source.rcon.RCONMessage(0, 0, b"")
@@ -47,13 +52,15 @@ class TestRCONMessage(object):
 
     def test_encode(self):
         message = valve.source.rcon.RCONMessage(0, 2, b"foo")
-        assert message.encode() == (
+        encoded = message.encode()
+        assert encoded == (
             b"\x0D\x00\x00\x00"  # Size; 4 + 4 + 3 + 2 = 0xD
             b"\x00\x00\x00\x00"  # ID
             b"\x02\x00\x00\x00"  # Type
             b"foo"               # Body
             b"\x00\x00"          # Terminators
         )
+        assert isinstance(encoded, six.binary_type)
 
     def test_decode(self):
         message, remainder = valve.source.rcon.RCONMessage.decode(
@@ -68,6 +75,7 @@ class TestRCONMessage(object):
         assert message.type == 2
         assert isinstance(message.type, message.Type)
         assert message.body == b"foo"
+        assert isinstance(message.body, six.binary_type)
         assert remainder == b"\xAA\xBB\xCC\xDD\xEE\xFF"
 
     @pytest.mark.parametrize("buffer_", [
@@ -107,6 +115,7 @@ class TestResponseBuffer(object):
         assert message.id == 0
         assert message.type is message.Type.AUTH_RESPONSE
         assert message.body == b""
+        assert isinstance(message.body, six.binary_type)
 
     def test_multi_part_response(self):
         part = (
@@ -139,6 +148,7 @@ class TestResponseBuffer(object):
         assert message.id == 5
         assert message.type is message.Type.RESPONSE_VALUE
         assert message.body == b"barbar"  # Black sheep ...
+        assert isinstance(message.body, six.binary_type)
 
     def test_discard_before(self):
         auth_response = (
@@ -193,6 +203,7 @@ class TestResponseBuffer(object):
         assert buffer_._responses
         buffer_.clear()
         assert buffer_._buffer == b""
+        assert isinstance(buffer_._buffer, six.binary_type)
         assert buffer_._partial_responses == []
         assert buffer_._responses == []
         buffer_.discard()
