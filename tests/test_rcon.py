@@ -10,6 +10,10 @@ import valve.source.rcon
 
 class TestRCONMessage(object):
 
+    def test_repr(self):
+        message = valve.source.rcon.RCONMessage(0, 0, b"foo")
+        assert repr(message) == "<RCONMessage 0 RESPONSE_VALUE 3B>"
+
     def test_init_bytes(self):
         message = valve.source.rcon.RCONMessage(0, 0, b"foo")
         assert message.id == 0
