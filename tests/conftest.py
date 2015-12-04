@@ -3,11 +3,11 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
-import socketserver
 import threading
 import copy
 
 import pytest
+import six.moves.socketserver as socketserver
 
 import valve.source.a2s
 import valve.source.master_server
@@ -100,7 +100,7 @@ def pytest_namespace():
 class ExpectedRCONMessage(valve.source.rcon.RCONMessage):
 
     def __init__(self, id_, type_, body):
-        super().__init__(id_, type_, body)
+        valve.source.rcon.RCONMessage.__init__(self, id_, type_, body)
         self._responses = []
 
     def respond(self, id_, type_, body):
@@ -152,7 +152,7 @@ class TestRCONHandler(socketserver.BaseRequestHandler):
 class TestRCONServer(socketserver.TCPServer):
 
     def __init__(self):
-        super().__init__(('', 0), TestRCONHandler)
+        socketserver.TCPServer.__init__(self, ('', 0), TestRCONHandler)
         self._expectations = []
 
     def expect(self, id_, type_, body):
