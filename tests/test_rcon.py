@@ -210,3 +210,32 @@ class TestResponseBuffer(object):
         assert buffer_._discard_count == 1
         buffer_.clear()
         assert buffer_._discard_count == 0
+
+
+class TestRCON(object):
+
+    @pytest.mark.timeout(timeout=3, method="thread")
+    def test_authentication(self, rcon_server):
+        e_request = rcon_server.expect(
+            0, valve.source.rcon.RCONMessage.Type.AUTH, b"password")
+        e_request.respond(
+            0, valve.source.rcon.RCONMessage.Type.AUTH_RESPONSE, b"")
+        rcon = valve.source.rcon.RCON(rcon_server.server_address, b"password")
+        with rcon as rcon:
+            assert rcon.is_authenticated is True
+
+    @pytest.mark.timeout(timeout=3, method="thread")
+    def test_authentication_wrong_password(self, rcon_server):
+        e_request = rcon_server.expect(
+            0, valve.source.rcon.RCONMessage.Type.AUTH, b"")
+        e_request.respond(
+            -1, valve.source.rcon.RCONMessage.Type.AUTH_RESPONSE, b"")
+        rcon = valve.source.rcon.RCON(rcon_server.server_address, b"")
+        with pytest.raises(valve.source.rcon.RCONAuthenticationError) as exc:
+            with rcon as rcon:
+                pass
+            assert rcon.is_authenticated is True
+            assert exc.value.banned is False
+
+    def test_authentication_banned(self):
+        pass

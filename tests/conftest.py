@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2014 Oliver Ainsworth
 
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
+import socketserver
+import threading
+import copy
+
 import pytest
 
-
-import valve.source.master_server
 import valve.source.a2s
+import valve.source.master_server
+import valve.source.rcon
 
 
 def srcds_functional(**filter_):
@@ -92,3 +95,79 @@ def pytest_generate_tests(metafunc):
 
 def pytest_namespace():
     return {"srcds_functional": srcds_functional}
+
+
+class ExpectedRCONMessage(valve.source.rcon.RCONMessage):
+
+    def __init__(self, id_, type_, body):
+        super().__init__(id_, type_, body)
+        self._responses = []
+
+    def respond(self, id_, type_, body):
+        self._responses.append(
+            valve.source.rcon.RCONMessage(id_, type_, body))
+
+    def encode_responses(self):
+        return b"".join(response.encode() for response in self._responses)
+
+
+class TestRCONHandler(socketserver.BaseRequestHandler):
+
+    def _decode_messages(self, buffer_):
+        while buffer_:
+            try:
+                message, buffer_ = \
+                    valve.source.rcon.RCONMessage.decode(buffer_)
+            except valve.source.rcon.RCONMessageError:
+                return
+            else:
+                yield message
+
+    def _handle_request(self, message):
+        if not self._expectations:
+            raise Exception("Unexpected message {}".format(message))
+        expected = self._expectations.pop(0)
+        for attribute in ['id', 'type', 'body']:
+            a_message = getattr(message, attribute)
+            a_expected = getattr(expected, attribute)
+            if a_message != a_expected:
+                raise Exception("Expected {} == {!r}, got {!r}".format(
+                    attribute, a_expected, a_message))
+        self.request.sendall(expected.encode_responses())
+
+    def setup(self):
+        self._expectations = self.server.expectations()
+
+    def handle(self):
+        buffer_ = b""
+        while True:
+            received = self.request.recv(4096)
+            if not received:
+                return
+            buffer_ += received
+            for message in self._decode_messages(buffer_):
+                self._handle_request(message)
+
+
+class TestRCONServer(socketserver.TCPServer):
+
+    def __init__(self):
+        super().__init__(('', 0), TestRCONHandler)
+        self._expectations = []
+
+    def expect(self, id_, type_, body):
+        self._expectations.append(ExpectedRCONMessage(id_, type_, body))
+        return self._expectations[-1]
+
+    def expectations(self):
+        return copy.deepcopy(self._expectations)
+
+
+@pytest.yield_fixture
+def rcon_server():
+    server = TestRCONServer()
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+    yield server
+    server.shutdown()
+    thread.join()
