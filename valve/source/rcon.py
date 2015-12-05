@@ -7,6 +7,7 @@ from __future__ import (absolute_import,
 
 import enum
 import errno
+import functools
 import logging
 import socket
 import struct
@@ -269,7 +270,7 @@ class _ResponseBuffer(object):
 
 
 class RCON(object):
-    """Represents a RCON connection."""
+    """Represents an RCON connection."""
 
     def __init__(self, address, password, timeout=None):
         self._address = address
@@ -291,7 +292,7 @@ class RCON(object):
     def __call__(self, command):
         """Invoke a command.
 
-        This is higher-level version of :meth:`execute` that always blocks
+        This is a higher-level version of :meth:`execute` that always blocks
         and only returns the response body.
 
         :raises RCONMEssageError: if the response body couldn't be decoded
@@ -305,9 +306,27 @@ class RCON(object):
             raise RCONMessageError("Couldn't decode response: {}".format(exc))
 
     @property
-    def is_authenticated(self):
+    def connected(self):
+        """Determine if a connection has been made.
+
+        .. note::
+            Strictly speaking this does not guarantee that any subsequent
+            attempt to execute a command will succeed as the underlying
+            socket may be closed by the server at any time. It merely
+            indicates that a previous call to :meth:`connect` was
+            successful.
+        """
+        return bool(self._socket)
+
+    @property
+    def authenticated(self):
         """Determine if the connection is authenticated."""
         return self._authenticated
+
+    @property
+    def closed(self):
+        """Determine if the connection has been closed."""
+        return self._closed
 
     def _request(self, type_, body):
         """Send a request to the server.
@@ -373,19 +392,49 @@ class RCON(object):
         self.close()
         raise RCONTimeoutError
 
-    def connect(self):
-        """Create a connection to a server.
+    def _ensure(state, value=True):
+        """Decorator to ensure a connection is in a specific state.
 
-        :raises RCONError: if the connection has already been made.
+        Use this to wrap a method so that it'll only be executed when
+        certain attributes are set to ``True`` or ``False``. The returned
+        function will raise :exc:`RCONError` if the condition is not met.
+
+        Additionally, this decorator will modify the docstring of the
+        wrapped function to include a sphinx-style ``:raises:`` directive
+        documenting the valid state for the call.
+
+        :param str state: the state attribute to check.
+        :param bool value: the required value for the attribute.
         """
-        if self._closed or self._socket:
-            raise RCONError("Cannot connect after closing previous "
-                            "connection or whilst already connected")
+
+        def decorator(function):
+
+            @functools.wraps(function)
+            def wrapper(instance, *args, **kwargs):
+                if not getattr(instance, state) is value:
+                    raise RCONError("Must {} {}".format(
+                        "be" if value else "not be", state))
+                return function(instance, *args, **kwargs)
+
+            if not wrapper.__doc__.endswith("\n"):
+                wrapper.__doc__ += "\n"
+            wrapper.__doc__ += ("\n:raises RCONError: {} {}.".format(
+                "if" if value else "if not", state))
+            return wrapper
+
+        return decorator
+
+    @_ensure('connected', False)
+    @_ensure('closed', False)
+    def connect(self):
+        """Create a connection to a server."""
         log.debug("Connecting to %s", self._address)
         self._socket = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
         self._socket.connect(self._address)
 
+    @_ensure('connected')
+    @_ensure('closed', False)
     def authenticate(self):
         """Authenticate with the server.
 
@@ -412,9 +461,6 @@ class RCON(object):
         :raises RCONAuthenticationError: if authentication failed, either
             due to being banned or providing the wrong password.
         """
-        if self._closed or not self._socket:
-            raise RCONError(
-                "Cannot authenticate whilst not connected to a server")
         self._request(RCONMessage.Type.AUTH, self._password)
         try:
             response = self._receive(1)[0]
@@ -429,17 +475,14 @@ class RCON(object):
                 raise RCONAuthenticationError
             self._authenticated = True
 
+    @_ensure('connected')
     def close(self):
-        """Close connection to a server.
-
-        :raises RCONError: if the connection has not yet been made.
-        """
-        if not self._socket:
-            raise RCONError(
-                "Cannot close connection that hasn't been created yet")
-        self._closed = True
+        """Close connection to a server."""
         self._socket.close()
+        self._closed = True
+        self._socket = None
 
+    @_ensure('authenticated')
     def execute(self, command, block=True):
         """Invoke a command.
 
@@ -466,6 +509,8 @@ class RCON(object):
         else:
             self._responses.discard()
             self._read()
+
+    del _ensure
 
 
 def shell(rcon=None):

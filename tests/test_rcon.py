@@ -215,17 +215,22 @@ class TestResponseBuffer(object):
 class TestRCON(object):
 
     @pytest.mark.timeout(timeout=3, method="thread")
-    def test_authentication(self, rcon_server):
+    def test_authenticate(self, rcon_server):
         e_request = rcon_server.expect(
             0, valve.source.rcon.RCONMessage.Type.AUTH, b"password")
         e_request.respond(
             0, valve.source.rcon.RCONMessage.Type.AUTH_RESPONSE, b"")
         rcon = valve.source.rcon.RCON(rcon_server.server_address, b"password")
         with rcon as rcon:
-            assert rcon.is_authenticated is True
+            assert rcon.authenticated is True
+
+    def test_authenticate_not_connected(self):
+        rcon = valve.source.rcon.RCON(None, b"")
+        with pytest.raises(valve.source.rcon.RCONError):
+            rcon.authenticate()
 
     @pytest.mark.timeout(timeout=3, method="thread")
-    def test_authentication_wrong_password(self, rcon_server):
+    def test_authenticate_wrong_password(self, rcon_server):
         e_request = rcon_server.expect(
             0, valve.source.rcon.RCONMessage.Type.AUTH, b"")
         e_request.respond(
@@ -234,11 +239,11 @@ class TestRCON(object):
         with pytest.raises(valve.source.rcon.RCONAuthenticationError) as exc:
             with rcon as rcon:
                 pass
-            assert rcon.is_authenticated is True
+            assert rcon.authenticated is True
             assert exc.value.banned is False
 
     @pytest.mark.timeout(timeout=3, method="thread")
-    def test_authentication_banned(self, rcon_server):
+    def test_authenticate_banned(self, rcon_server):
         e_request = rcon_server.expect(
             0, valve.source.rcon.RCONMessage.Type.AUTH, b"password")
         e_request.respond_close()
@@ -246,7 +251,7 @@ class TestRCON(object):
         with pytest.raises(valve.source.rcon.RCONAuthenticationError) as exc:
             with rcon as rcon:
                 pass
-            assert rcon.is_authenticated is True
+            assert rcon.authenticated is True
             assert exc.value.banned is True
 
     @pytest.mark.timeout(timeout=3, method="thread")
@@ -258,12 +263,25 @@ class TestRCON(object):
         e_request.respond_terminate_multi_part(0)
         rcon = valve.source.rcon.RCON(rcon_server.server_address, b"")
         rcon.connect()
+        rcon._authenticated = True
         request.addfinalizer(rcon.close)
         response = rcon.execute("echo hello")
         assert response.id == 0
         assert response.type is response.Type.RESPONSE_VALUE
         assert response.body == b"hello"
         assert isinstance(response.body, six.binary_type)
+
+    def test_execute_not_connected(self):
+        rcon = valve.source.rcon.RCON(None, b"")
+        with pytest.raises(valve.source.rcon.RCONError):
+            rcon.execute("foo")
+
+    def test_execute_not_authenticated(self, request, rcon_server):
+        rcon = valve.source.rcon.RCON(rcon_server.server_address, b"")
+        rcon.connect()
+        request.addfinalizer(rcon.close)
+        with pytest.raises(valve.source.rcon.RCONError):
+            rcon.execute("foo")
 
     @pytest.mark.timeout(timeout=3, method="thread")
     def test_execute_no_block(self, request, rcon_server):
@@ -283,6 +301,7 @@ class TestRCON(object):
             0, valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE, b"")
         rcon = valve.source.rcon.RCON(rcon_server.server_address, b"")
         rcon.connect()
+        rcon._authenticated = True
         request.addfinalizer(rcon.close)
         response_1 = rcon.execute("echo hello", block=False)
         response_2 = rcon.execute("echo hello", block=True)
@@ -301,10 +320,23 @@ class TestRCON(object):
         e_request.respond_terminate_multi_part(0)
         rcon = valve.source.rcon.RCON(rcon_server.server_address, b"")
         rcon.connect()
+        rcon._authenticated = True
         request.addfinalizer(rcon.close)
         response = rcon("echo hello")
         assert response == "hello"
         assert isinstance(response, six.text_type)
+
+    def test_call_not_connected(self):
+        rcon = valve.source.rcon.RCON(None, b"")
+        with pytest.raises(valve.source.rcon.RCONError):
+            rcon("foo")
+
+    def test_call_not_authenticated(self, request, rcon_server):
+        rcon = valve.source.rcon.RCON(rcon_server.server_address, b"")
+        rcon.connect()
+        request.addfinalizer(rcon.close)
+        with pytest.raises(valve.source.rcon.RCONError):
+            rcon("foo")
 
     @pytest.mark.timeout(timeout=3, method="thread")
     def test_call_text_bad(self, request, rcon_server):
@@ -315,6 +347,7 @@ class TestRCON(object):
         e_request.respond_terminate_multi_part(0)
         rcon = valve.source.rcon.RCON(rcon_server.server_address, b"")
         rcon.connect()
+        rcon._authenticated = True
         request.addfinalizer(rcon.close)
         with pytest.raises(valve.source.rcon.RCONMessageError):
             rcon("")
