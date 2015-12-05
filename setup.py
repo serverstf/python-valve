@@ -8,8 +8,9 @@ from setuptools.command.test import test as TestCommand
 
 
 install_requires = [
-    "six>=1.6",
+    "monotonic",
     "requests>=2.0",
+    "six>=1.6",
 ]
 if sys.version_info[0] == 2:
     install_requires.append("enum34>=1.1")

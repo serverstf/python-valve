@@ -12,8 +12,8 @@ import logging
 import select
 import socket
 import struct
-import time
 
+import monotonic
 import six
 
 
@@ -329,6 +329,23 @@ class RCON(object):
         """Determine if the connection has been closed."""
         return self._closed
 
+    def _timer(self, timeout):
+        """Iterable timeout timer.
+
+        :param timeout: the number of seconds to wait before timing out.
+            If ``None`` then the timer will never timeout.
+
+        :raises RCONTimeoutError: once the timeout is reached.
+
+        :returns: an iterable that will yield items until the timeout
+            is reached.
+        """
+        time_start = monotonic.monotonic()
+        while (timeout is None
+                or monotonic.monotonic() - time_start < timeout):
+            yield
+        raise RCONTimeoutError
+
     def _request(self, type_, body):
         """Send a request to the server.
 
@@ -362,39 +379,25 @@ class RCON(object):
             raise RCONCommunicationError
         self._responses.feed(i_bytes)
 
-    def _receive(self, count=1):
+    def _receive(self, timeout):
         """Receive messages from the server.
 
-        This will wait up to the configured timeout for the given number of
-        messages to be recieved from the server. If there is any kind of
-        communication error or the timeout is reached then the connection is
-        closed.
-
-        :param int count: the number of messages to wait for.
+        This will wait up to the configured timeout for a message to be
+        received.
 
         :raises RCONCommunicationError: if the socket is closed by the
             server or for any other unexpected socket-related error.
         :raises RCONTimeoutError: if the desired number of messages are
             not recieved in the configured timeout.
 
-        :returns: a tuple containing ``count`` number of :class:`RCONMessage`
-            that were received.
+        :returns: the :class:`RCONMessage` that was received.
         """
-        responses = []
-        time_start = time.monotonic()
-        while (self._timeout is None
-                or time.monotonic() - time_start < self._timeout):
+        for _ in self._timer(timeout):
             self._read()
             try:
-                response = self._responses.pop()
+                return self._responses.pop()
             except RCONError:
                 continue
-            else:
-                responses.append(response)
-                if len(responses) == count:
-                    return tuple(responses)
-        self.close()
-        raise RCONTimeoutError
 
     def _ensure(state, value=True):
         """Decorator to ensure a connection is in a specific state.
@@ -439,7 +442,7 @@ class RCON(object):
 
     @_ensure('connected')
     @_ensure('closed', False)
-    def authenticate(self):
+    def authenticate(self, timeout=None):
         """Authenticate with the server.
 
         This sends an authentication message to the connected server
@@ -462,17 +465,28 @@ class RCON(object):
                 ] removeip xxx.xxx.xxx.xxx
                 removeip:  filter removed for xxx.xxx.xxx.xxx
 
+        :param timeout: the number of seconds to wait for a response. If
+            not given the connection-global timeout is used.
+
         :raises RCONAuthenticationError: if authentication failed, either
             due to being banned or providing the wrong password.
+        :raises RCONTimeoutError: if the server takes too long to respond.
+            The connection will be closed in this case as well.
         """
+        if timeout is None:
+            timeout = self._timeout
         self._request(RCONMessage.Type.AUTH, self._password)
         try:
-            response = self._receive(1)[0]
+            response = self._receive(timeout)
         except RCONCommunicationError:
             raise RCONAuthenticationError(True)
+        except RCONTimeoutError:
+            self.close()
+            raise
         else:
-            # TODO: Understand why two responses -- the first being
-            #       completely empty (all zero) -- are sent.
+            # It appears that some servers send an empty RESPONSE_VALUE
+            # before the AUTH_RESPONSE which will sit in the multi-part
+            # message buffer so clear it manually.
             self._responses.clear()
             if response.id == -1:
                 self.close()
@@ -488,7 +502,7 @@ class RCON(object):
 
     @_ensure('connected')
     @_ensure('authenticated')
-    def execute(self, command, block=True):
+    def execute(self, command, block=True, timeout=None):
         """Invoke a command.
 
         Invokes the given command on the conncted server. By default this
@@ -497,20 +511,29 @@ class RCON(object):
 
         :param str command: the command to execute.
         :param bool block: whether or not to wait for a response.
+        :param timeout: the number of seconds to wait for a response. If
+            not given the connection-global timeout is used.
 
         :raises RCONCommunicationError: if the socket is closed or in any
             other erroneous state whilst issuing the request or receiving
             the response.
         :raises RCONTimeoutError: if the timeout is reached waiting for a
-            response.
+            response. This doesn't close the connection but the response is
+            lost.
 
         :returns: the response to the command as a :class:`RCONMessage` or
             ``None`` depending on whether ``block`` was ``True`` or not.
         """
+        if timeout is None:
+            timeout = self._timeout
         self._request(RCONMessage.Type.EXECCOMMAND, command)
         self._request(RCONMessage.Type.RESPONSE_VALUE, "")
         if block:
-            return self._receive(1)[0]
+            try:
+                return self._receive(timeout)
+            except RCONTimeoutError:
+                self._responses.discard()
+                raise
         else:
             self._responses.discard()
             self._read()
