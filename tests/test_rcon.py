@@ -248,3 +248,73 @@ class TestRCON(object):
                 pass
             assert rcon.is_authenticated is True
             assert exc.value.banned is True
+
+    @pytest.mark.timeout(timeout=3, method="thread")
+    def test_execute(self, request, rcon_server):
+        e_request = rcon_server.expect(
+            0, valve.source.rcon.RCONMessage.Type.EXECCOMMAND, b"echo hello")
+        e_request.respond(
+            0, valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE, b"hello")
+        e_request.respond_terminate_multi_part(0)
+        rcon = valve.source.rcon.RCON(rcon_server.server_address, b"")
+        rcon.connect()
+        request.addfinalizer(rcon.close)
+        response = rcon.execute("echo hello")
+        assert response.id == 0
+        assert response.type is response.Type.RESPONSE_VALUE
+        assert response.body == b"hello"
+        assert isinstance(response.body, six.binary_type)
+
+    @pytest.mark.timeout(timeout=3, method="thread")
+    def test_execute_no_block(self, request, rcon_server):
+        e1_request = rcon_server.expect(
+            0, valve.source.rcon.RCONMessage.Type.EXECCOMMAND, b"echo hello")
+        e1_request.respond(
+            0, valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE, b"hello")
+        e1_request.respond_terminate_multi_part(0)
+        rcon_server.expect(
+            0, valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE, b"")
+        e2_request = rcon_server.expect(
+            0, valve.source.rcon.RCONMessage.Type.EXECCOMMAND, b"echo hello")
+        e2_request.respond(
+            0, valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE, b"hello")
+        e2_request.respond_terminate_multi_part(0)
+        rcon_server.expect(
+            0, valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE, b"")
+        rcon = valve.source.rcon.RCON(rcon_server.server_address, b"")
+        rcon.connect()
+        request.addfinalizer(rcon.close)
+        response_1 = rcon.execute("echo hello", block=False)
+        response_2 = rcon.execute("echo hello", block=True)
+        assert response_1 is None
+        assert response_2.id == 0
+        assert response_2.type is response_2.Type.RESPONSE_VALUE
+        assert response_2.body == b"hello"
+        assert isinstance(response_2.body, six.binary_type)
+
+    @pytest.mark.timeout(timeout=3, method="thread")
+    def test_call(self, request, rcon_server):
+        e_request = rcon_server.expect(
+            0, valve.source.rcon.RCONMessage.Type.EXECCOMMAND, b"echo hello")
+        e_request.respond(
+            0, valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE, b"hello")
+        e_request.respond_terminate_multi_part(0)
+        rcon = valve.source.rcon.RCON(rcon_server.server_address, b"")
+        rcon.connect()
+        request.addfinalizer(rcon.close)
+        response = rcon("echo hello")
+        assert response == "hello"
+        assert isinstance(response, six.text_type)
+
+    @pytest.mark.timeout(timeout=3, method="thread")
+    def test_call_text_bad(self, request, rcon_server):
+        e_request = rcon_server.expect(
+            0, valve.source.rcon.RCONMessage.Type.EXECCOMMAND, b"")
+        e_request.respond(
+            0, valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE, b"\xFF")
+        e_request.respond_terminate_multi_part(0)
+        rcon = valve.source.rcon.RCON(rcon_server.server_address, b"")
+        rcon.connect()
+        request.addfinalizer(rcon.close)
+        with pytest.raises(valve.source.rcon.RCONMessageError):
+            rcon("")

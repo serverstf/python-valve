@@ -114,6 +114,15 @@ class ExpectedRCONMessage(valve.source.rcon.RCONMessage):
     def respond_close(self):
         self.responses.append(TestRCONHandler.close)
 
+    def respond_terminate_multi_part(self, id_):
+        self.respond(
+            id_, valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE, b"")
+        self.respond(
+            id_,
+            valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE,
+            b"\x00\x01\x00\x00",
+        )
+
 
 class TestRCONHandler(socketserver.BaseRequestHandler):
 

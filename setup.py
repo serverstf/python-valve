@@ -47,6 +47,7 @@ setup(
     tests_require=[
         "mock==1.0.1",
         "pytest>=2.8.0",
+        "pytest-capturelog",
         "pytest-timeout",
     ],
     extras_require={

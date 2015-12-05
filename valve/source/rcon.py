@@ -241,6 +241,7 @@ class _ResponseBuffer(object):
                                 b"".join(part.body for part
                                          in self._partial_responses[:-2]),
                             ))
+                            del self._partial_responses[:]
                 else:
                     if self._partial_responses:
                         log.warning("Unexpected message %r", message)
