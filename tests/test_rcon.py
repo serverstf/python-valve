@@ -312,6 +312,19 @@ class TestRCON(object):
         assert isinstance(response_2.body, six.binary_type)
 
     @pytest.mark.timeout(timeout=3, method="thread")
+    def test_execute_timeout(self, request, rcon_server):
+        rcon_server.expect(
+            0, valve.source.rcon.RCONMessage.Type.EXECCOMMAND, b"")
+        rcon_server.expect(
+            0, valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE, b"")
+        rcon = valve.source.rcon.RCON(rcon_server.server_address, b"", 1.5)
+        rcon.connect()
+        rcon._authenticated = True
+        request.addfinalizer(rcon.close)
+        with pytest.raises(valve.source.rcon.RCONTimeoutError):
+            rcon.execute("")
+
+    @pytest.mark.timeout(timeout=3, method="thread")
     def test_call(self, request, rcon_server):
         e_request = rcon_server.expect(
             0, valve.source.rcon.RCONMessage.Type.EXECCOMMAND, b"echo hello")

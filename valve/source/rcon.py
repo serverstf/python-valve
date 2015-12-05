@@ -9,6 +9,7 @@ import enum
 import errno
 import functools
 import logging
+import select
 import socket
 import struct
 import time
@@ -348,6 +349,9 @@ class RCON(object):
             server or for any other unexpected socket-related error. In
             such cases the connection will also be closed.
         """
+        ready, _, _ = select.select([self._socket], [], [], 0)
+        if not ready:
+            return
         try:
             i_bytes = self._socket.recv(4096)
         except socket.error:
@@ -475,13 +479,14 @@ class RCON(object):
                 raise RCONAuthenticationError
             self._authenticated = True
 
-    @_ensure('connected')
     def close(self):
         """Close connection to a server."""
-        self._socket.close()
-        self._closed = True
-        self._socket = None
+        if self.connected:
+            self._socket.close()
+            self._closed = True
+            self._socket = None
 
+    @_ensure('connected')
     @_ensure('authenticated')
     def execute(self, command, block=True):
         """Invoke a command.
