@@ -3,6 +3,7 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
+import functools
 import threading
 import copy
 
@@ -101,14 +102,17 @@ class ExpectedRCONMessage(valve.source.rcon.RCONMessage):
 
     def __init__(self, id_, type_, body):
         valve.source.rcon.RCONMessage.__init__(self, id_, type_, body)
-        self._responses = []
+        self.responses = []
 
     def respond(self, id_, type_, body):
-        self._responses.append(
-            valve.source.rcon.RCONMessage(id_, type_, body))
+        response = functools.partial(
+            TestRCONHandler.send_message,
+            message=valve.source.rcon.RCONMessage(id_, type_, body),
+        )
+        self.responses.append(response)
 
-    def encode_responses(self):
-        return b"".join(response.encode() for response in self._responses)
+    def respond_close(self):
+        self.responses.append(TestRCONHandler.close)
 
 
 class TestRCONHandler(socketserver.BaseRequestHandler):
@@ -133,7 +137,14 @@ class TestRCONHandler(socketserver.BaseRequestHandler):
             if a_message != a_expected:
                 raise Exception("Expected {} == {!r}, got {!r}".format(
                     attribute, a_expected, a_message))
-        self.request.sendall(expected.encode_responses())
+        for response in expected.responses:
+            response(self)
+
+    def send_message(self, message):
+        self.request.sendall(message.encode())
+
+    def close(self):
+        self.request.close()
 
     def setup(self):
         self._expectations = self.server.expectations()

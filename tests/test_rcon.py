@@ -237,5 +237,14 @@ class TestRCON(object):
             assert rcon.is_authenticated is True
             assert exc.value.banned is False
 
-    def test_authentication_banned(self):
-        pass
+    @pytest.mark.timeout(timeout=3, method="thread")
+    def test_authentication_banned(self, rcon_server):
+        e_request = rcon_server.expect(
+            0, valve.source.rcon.RCONMessage.Type.AUTH, b"password")
+        e_request.respond_close()
+        rcon = valve.source.rcon.RCON(rcon_server.server_address, b"")
+        with pytest.raises(valve.source.rcon.RCONAuthenticationError) as exc:
+            with rcon as rcon:
+                pass
+            assert rcon.is_authenticated is True
+            assert exc.value.banned is True
