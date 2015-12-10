@@ -47,10 +47,9 @@ setup(
     install_requires=install_requires,
     tests_require=[
         "mock==1.0.1",
-        "pytest",
-        # "pytest>=2.8.0",
-        # "pytest-capturelog",
-        # "pytest-timeout",
+        "pytest>=2.8.0",
+        "pytest-capturelog",
+        "pytest-timeout",
     ],
     extras_require={
         "development": [
