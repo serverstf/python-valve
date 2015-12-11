@@ -3,19 +3,19 @@ import copy
 
 import six.moves.socketserver as socketserver
 
-import valve.source.rcon
+import valve.rcon
 
 
-class ExpectedRCONMessage(valve.source.rcon.RCONMessage):
+class ExpectedRCONMessage(valve.rcon.RCONMessage):
 
     def __init__(self, id_, type_, body):
-        valve.source.rcon.RCONMessage.__init__(self, id_, type_, body)
+        valve.rcon.RCONMessage.__init__(self, id_, type_, body)
         self.responses = []
 
     def respond(self, id_, type_, body):
         response = functools.partial(
             TestRCONHandler.send_message,
-            message=valve.source.rcon.RCONMessage(id_, type_, body),
+            message=valve.rcon.RCONMessage(id_, type_, body),
         )
         self.responses.append(response)
 
@@ -24,10 +24,10 @@ class ExpectedRCONMessage(valve.source.rcon.RCONMessage):
 
     def respond_terminate_multi_part(self, id_):
         self.respond(
-            id_, valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE, b"")
+            id_, valve.rcon.RCONMessage.Type.RESPONSE_VALUE, b"")
         self.respond(
             id_,
-            valve.source.rcon.RCONMessage.Type.RESPONSE_VALUE,
+            valve.rcon.RCONMessage.Type.RESPONSE_VALUE,
             b"\x00\x01\x00\x00",
         )
 
@@ -38,8 +38,8 @@ class TestRCONHandler(socketserver.BaseRequestHandler):
         while buffer_:
             try:
                 message, buffer_ = \
-                    valve.source.rcon.RCONMessage.decode(buffer_)
-            except valve.source.rcon.RCONMessageError:
+                    valve.rcon.RCONMessage.decode(buffer_)
+            except valve.rcon1.RCONMessageError:
                 return
             else:
                 yield message
