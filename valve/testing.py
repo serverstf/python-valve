@@ -1,5 +1,6 @@
-import functools
 import copy
+import functools
+import select
 
 import six.moves.socketserver as socketserver
 
@@ -69,12 +70,17 @@ class TestRCONHandler(socketserver.BaseRequestHandler):
     def handle(self):
         buffer_ = b""
         while True:
-            received = self.request.recv(4096)
-            if not received:
-                return
-            buffer_ += received
-            for message in self._decode_messages(buffer_):
-                self._handle_request(message)
+            ready, _, _ = select.select([self.request], [], [], 0)
+            if ready:
+                received = self.request.recv(4096)
+                if not received:
+                    return
+                buffer_ += received
+                try:
+                    for message in self._decode_messages(buffer_):
+                        self._handle_request(message)
+                except Exception:
+                    return
 
 
 class TestRCONServer(socketserver.TCPServer):
