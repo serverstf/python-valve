@@ -40,7 +40,8 @@ class RCONAuthenticationError(RCONError):
     """
 
     def __init__(self, banned=False):
-        super().__init__("Banned" if banned else "Wrong password")
+        super(RCONError, self).__init__(
+            "Banned" if banned else "Wrong password")
         self.banned = banned
 
 
