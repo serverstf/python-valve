@@ -5,4 +5,5 @@ python:
   - "3.5"
   - "pypy"
 script:
-  - python setup.py pytest
+  - pip install -e .[test]
+  - py.test -ra -v tests/

@@ -24,19 +24,16 @@ setup(
     author="Oliver Ainsworth",
     author_email="ottajay@googlemail.com",
     packages=find_packages(),
-    setup_requires=[
-        "pytest-runner",
-    ],
     install_requires=install_requires,
-    tests_require=[
-        "mock==1.0.1",
-        "pytest>=2.8.0",
-        "pytest-capturelog",
-        "pytest-timeout",
-    ],
     extras_require={
         "development": [
             "pylint",
+        ],
+        "test": [
+            "mock==1.0.1",
+            "pytest>=2.8.0",
+            "pytest-capturelog",
+            "pytest-timeout",
         ],
     },
     license="MIT License",
