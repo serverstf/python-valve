@@ -16,26 +16,6 @@ if sys.version_info[0] == 2:
     install_requires.append("enum34>=1.1")
 
 
-class PyTest(TestCommand):
-    # http://pytest.org/latest/goodpractises.html#integration-with-setuptools-test-commands
-
-    user_options = [('pytest-args=', 'a', "Arguments to pass to py.test")]
-
-    def initialize_options(self):
-        TestCommand.initialize_options(self)
-        self.pytest_args = []
-
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-        self.test_args = []
-        self.test_suite = True
-
-    def run_tests(self):
-        # Import here, cause outside the eggs aren't loaded
-        import pytest
-        sys.exit(pytest.main(self.pytest_args))
-
-
 setup(
     name="python-valve",
     version="0.1.1",
@@ -45,21 +25,18 @@ setup(
     author_email="ottajay@googlemail.com",
     packages=find_packages(),
     install_requires=install_requires,
-    tests_require=[
-        "mock==1.0.1",
-        "pytest>=2.8.0",
-        "pytest-capturelog",
-        "pytest-timeout",
-    ],
     extras_require={
         "development": [
             "pylint",
         ],
+        "test": [
+            "mock==1.0.1",
+            "pytest>=2.8.0",
+            "pytest-capturelog",
+            "pytest-timeout",
+        ],
     },
     license="MIT License",
-    cmdclass={
-        "test": PyTest,
-    },
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Development Status :: 4 - Beta",

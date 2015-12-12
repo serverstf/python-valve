@@ -1,8 +1,10 @@
 language: python
 python:
-    - "2.7"
-    - "3.4"
-    - "3.5"
-    - "pypy"
+  - "2.7"
+  - "3.4"
+  - "3.5"
+  - "pypy"
+install:
+  - pip install -e .[test]
 script:
-    python setup.py test
+  - py.test -ra -v tests/
