@@ -14,6 +14,8 @@ from __future__ import (absolute_import,
 
 import abc
 
+import six
+
 
 class VDFError(Exception):
     """Base exception for all VDF errors."""
@@ -36,7 +38,8 @@ class IncludeResolutionError(VDFError):
     """Raised when resolving an include fails."""
 
 
-class IncludeResolver(abc.ABC):
+@six.add_metaclass(abc.ABCMeta)
+class IncludeResolver(object):
     """Base class for resolving includes.
 
     VDF supports includes via ``#include`` and ``#base``. Whenever the
