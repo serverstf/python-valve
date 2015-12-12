@@ -4,6 +4,7 @@ python:
   - "3.4"
   - "3.5"
   - "pypy"
-script:
+install:
   - pip install -e .[test]
+script:
   - py.test -ra -v tests/
