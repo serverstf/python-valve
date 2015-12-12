@@ -9,6 +9,10 @@ import six.moves.socketserver as socketserver
 import valve.rcon
 
 
+class UnexpectedRCONMessage(Exception):
+    """Raised when an RCON request wasn't expected."""
+
+
 class ExpectedRCONMessage(valve.rcon.RCONMessage):
     """Request expected by :class:`TestRCONServer`.
 
@@ -60,18 +64,17 @@ class ExpectedRCONMessage(valve.rcon.RCONMessage):
 class _TestRCONHandler(socketserver.BaseRequestHandler):
     """Request handler for :class:`TestRCONServer`."""
 
-    def _decode_messages(self, buffer_):
+    def _decode_messages(self):
         """Decode buffer into discrete RCON messages.
 
-        :param bytes buffer_: a byte-string containing the encoded,
-            incoming RCON messages.
+        This may consume the buffer, either in whole or part.
 
         :returns: an iterator of :class:`valve.rcon.RCONMessage`s.
         """
-        while buffer_:
+        while self._buffer:
             try:
-                message, buffer_ = \
-                    valve.rcon.RCONMessage.decode(buffer_)
+                message, self._buffer = \
+                    valve.rcon.RCONMessage.decode(self._buffer)
             except valve.rcon.RCONMessageError:
                 return
             else:
@@ -87,17 +90,19 @@ class _TestRCONHandler(socketserver.BaseRequestHandler):
 
         :param valve.rcon.RCONMessage: the request to handle.
 
-        :raises Exception: if given message does not match the expected
-            request.
+        :raises UnexpectedRCONMessage: if given message does not match
+            the expected request.
         """
         if not self._expectations:
-            raise Exception("Unexpected message {}".format(message))
+            raise UnexpectedRCONMessage(
+                "Unexpected message {}".format(message))
         expected = self._expectations.pop(0)
         for attribute in ['id', 'type', 'body']:
             a_message = getattr(message, attribute)
             a_expected = getattr(expected, attribute)
             if a_message != a_expected:
-                raise Exception("Expected {} == {!r}, got {!r}".format(
+                raise UnexpectedRCONMessage(
+                    "Expected {} == {!r}, got {!r}".format(
                     attribute, a_expected, a_message))
         for response in expected.responses:
             response(self)
@@ -109,6 +114,7 @@ class _TestRCONHandler(socketserver.BaseRequestHandler):
         self.request.close()
 
     def setup(self):
+        self._buffer = b""
         self._expectations = self.server.expectations()
 
     def handle(self):
@@ -118,18 +124,17 @@ class _TestRCONHandler(socketserver.BaseRequestHandler):
         socket assigned to this handler. If the connected client closes
         the connection this method will exit.
         """
-        buffer_ = b""
         while True:
             ready, _, _ = select.select([self.request], [], [], 0)
             if ready:
                 received = self.request.recv(4096)
                 if not received:
                     return
-                buffer_ += received
+                self._buffer += received
                 try:
-                    for message in self._decode_messages(buffer_):
+                    for message in self._decode_messages():
                         self._handle_request(message)
-                except Exception:
+                except UnexpectedRCONMessage:
                     return
 
 
