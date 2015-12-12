@@ -1,3 +1,5 @@
+"""Utilities for testing."""
+
 import copy
 import functools
 import select
@@ -8,22 +10,44 @@ import valve.rcon
 
 
 class ExpectedRCONMessage(valve.rcon.RCONMessage):
+    """Request expected by :class:`TestRCONServer`.
+
+    This class should not be instantiated directly. Instead use the
+    :meth:`TestRCONServer.expect` factory to create them.
+
+    Instances of this class can be configured to respond to the request
+    using :meth:`respond`, :meth:`response_close`, etc..
+    """
 
     def __init__(self, id_, type_, body):
         valve.rcon.RCONMessage.__init__(self, id_, type_, body)
         self.responses = []
 
     def respond(self, id_, type_, body):
+        """Respond to the request with a message.
+
+        The parameters for this method are the same as those given to
+        the initialise of :class:`valve.rcon.RCONMessage`. The created
+        message will be encoded and sent to the client.
+        """
         response = functools.partial(
-            TestRCONHandler.send_message,
+            _TestRCONHandler.send_message,
             message=valve.rcon.RCONMessage(id_, type_, body),
         )
         self.responses.append(response)
 
     def respond_close(self):
-        self.responses.append(TestRCONHandler.close)
+        """Respond by closing the connection."""
+        self.responses.append(_TestRCONHandler.close)
 
     def respond_terminate_multi_part(self, id_):
+        """Respond by sending a multi-part message terminator.
+
+        :class:`valve.rcon.RCON` always expects multi-part responses so you
+        must configure one of these responses whenver you :meth:`respond`
+        with a :class:`valve.rcon.RCONMessage.Type.RESPONSE_VALVE`-type
+        message.
+        """
         self.respond(
             id_, valve.rcon.RCONMessage.Type.RESPONSE_VALUE, b"")
         self.respond(
@@ -33,19 +57,39 @@ class ExpectedRCONMessage(valve.rcon.RCONMessage):
         )
 
 
-class TestRCONHandler(socketserver.BaseRequestHandler):
+class _TestRCONHandler(socketserver.BaseRequestHandler):
+    """Request handler for :class:`TestRCONServer`."""
 
     def _decode_messages(self, buffer_):
+        """Decode buffer into discrete RCON messages.
+
+        :param bytes buffer_: a byte-string containing the encoded,
+            incoming RCON messages.
+
+        :returns: an iterator of :class:`valve.rcon.RCONMessage`s.
+        """
         while buffer_:
             try:
                 message, buffer_ = \
                     valve.rcon.RCONMessage.decode(buffer_)
-            except valve.rcon1.RCONMessageError:
+            except valve.rcon.RCONMessageError:
                 return
             else:
                 yield message
 
     def _handle_request(self, message):
+        """Handle individual RCON requests.
+
+        Given a RCON request this will check that it matches the next
+        expected request by comparing the request's ID, type and body
+        attributes. If they all match, then each of the responses
+        configured for the request is called.
+
+        :param valve.rcon.RCONMessage: the request to handle.
+
+        :raises Exception: if given message does not match the expected
+            request.
+        """
         if not self._expectations:
             raise Exception("Unexpected message {}".format(message))
         expected = self._expectations.pop(0)
@@ -68,6 +112,12 @@ class TestRCONHandler(socketserver.BaseRequestHandler):
         self._expectations = self.server.expectations()
 
     def handle(self):
+        """Handle incoming requests.
+
+        This will continually read incoming requests from the connected
+        socket assigned to this handler. If the connected client closes
+        the connection this method will exit.
+        """
         buffer_ = b""
         while True:
             ready, _, _ = select.select([self.request], [], [], 0)
@@ -84,14 +134,45 @@ class TestRCONHandler(socketserver.BaseRequestHandler):
 
 
 class TestRCONServer(socketserver.TCPServer):
+    """Stub RCON server for testing.
 
-    def __init__(self):
-        socketserver.TCPServer.__init__(self, ('', 0), TestRCONHandler)
+    This class provides a simple RCON server which can be configured to
+    respond to requests in certain ways. The idea is that this can be used
+    in testing to fake the responses from a real RCON server.
+
+    Specifically, each instance of this server can be configured to
+    :meth:`expect` requests in a certain order. For each expected request
+    there can be any number of responses for it. Each connection to the
+    server will expect the exact same requests.
+
+    All expected requests should be configured *before* connecting the
+    client to the server.
+
+    :param address: the address the server should bind to. By default it
+        will use a random port on all interfaces. In such cases the actual
+        address in use can be retrieved via the :attr:`server_address`
+        attribute.
+    """
+
+    def __init__(self, address=('', 0)):
+        socketserver.TCPServer.__init__(self, ('', 0), _TestRCONHandler)
         self._expectations = []
 
     def expect(self, id_, type_, body):
+        """Expect a RCON request.
+
+        The parameters for this method are the same as those passed to the
+        initialiser of :class:`ExpectedRCONMessage`.
+
+        :returns: the corresponding :class:`ExpectedRCONMessage`.
+        """
         self._expectations.append(ExpectedRCONMessage(id_, type_, body))
         return self._expectations[-1]
 
     def expectations(self):
+        """Get a copy of all the expectations.
+
+        :returns: a deep copy of all the :class:`ExpectedRCONMessage`
+            configured for the server.
+        """
         return copy.deepcopy(self._expectations)
