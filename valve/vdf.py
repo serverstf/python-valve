@@ -24,8 +24,7 @@ class VDFError(Exception):
 class VDFSyntaxError(SyntaxError, VDFError):
     """Exception for VDF syntax errors."""
 
-    def __init__(self, source, line, column, message):
-        self.source = source
+    def __init__(self, line, column, message):
         self.line = line
         self.column = column
         self.message = message
@@ -110,12 +109,80 @@ class FileSystemIncludeResolver(IncludeResolver):
 class VDFDecoder(object):
     """Streaming VDF decoder."""
 
+    _CURLY_LEFT_BRACKET = "{"
+    _CURLY_RIGHT_BRACKET = "}"
+    _LINE_FEED = "\n"
+    _QUOTATION_MARK = "\""
+    _REVERSE_SOLIDUS = "\\"
+    _WHITESPACE = [" ", "\t"]
+    _ESCAPE_SEQUENCES = {
+        "n": "\n",
+        "t": "\t",
+        "\\": "\\",
+        "\"": "\"",
+    }
+
     def __init__(self, includes):
-        self._buffer = ""
+        self._line = 1
+        self._column = 0
         self._includes = includes
+        self._parser = self._parse_whitespace()
+        next(self._parser)
+        self.object = {}
+        self._active_object = self.object
+        self._key = ""
+
+    def _parse_whitespace(self):
+        while True:
+            character = yield
+            if character not in self._WHITESPACE:
+                return
+
+    def _parse_key(self):
+        key = ""
+        first_character = yield
+        if first_character == self._QUOTATION_MARK:
+            quoted = True
+        else:
+            quoted = False
+        escape = False
+        while True:
+            character = yield
+            if not escape and character == self._QUOTATION_MARK:
+                break
+            if character == self._REVERSE_SOLIDUS:
+                escape = True
+                continue
+            if escape and character in self._ESCAPE_SEQUENCES:
+                character = self._ESCAPE_SEQUENCES[character]
+                escape = False
+            key += character
+        self._key = key
+
+    def _next_parser(self, character):
+        if not self._key:
+            return self._parse_key()
+        else:
+            if character in self._WHITESPACE:
+                return self._parse_whitespace()
 
     def feed(self, fragment):
-        pass
+        while fragment:
+            character, fragment = fragment[0], fragment[1:]
+            self._column += 1
+            if character == self._LINE_FEED:
+                self._line += 1
+                self._column = 1
+            if not self._parser:
+                self._parser = self._next_parser(character)
+                next(self._parser)
+            try:
+                self._parser.send(character)
+            except StopIteration:
+                self._parser = None
+                fragment = character + fragment
+            except SyntaxError as exc:
+                raise VDFSyntaxError(self._line, self._column, str(exc))
 
 
 class VDFEncoder(object):
