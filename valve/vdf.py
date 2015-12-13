@@ -153,9 +153,13 @@ class VDFDecoder(object):
             if character == self._REVERSE_SOLIDUS:
                 escape = True
                 continue
-            if escape and character in self._ESCAPE_SEQUENCES:
-                character = self._ESCAPE_SEQUENCES[character]
-                escape = False
+            if escape:
+                if character in self._ESCAPE_SEQUENCES:
+                    character = self._ESCAPE_SEQUENCES[character]
+                    escape = False
+                else:
+                    raise SyntaxError(
+                        "Invalid escape sequence '\\{}'".format(character))
             key += character
         self._key = key
 
