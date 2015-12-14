@@ -131,6 +131,7 @@ class VDFDecoder(object):
         self.object = {}
         self._active_object = self.object
         self._key = ""
+        self._value = None
 
     def _parse_whitespace(self):
         while True:
@@ -149,6 +150,7 @@ class VDFDecoder(object):
         while True:
             character = yield
             if not escape and character == self._QUOTATION_MARK:
+                yield  # Consume trailing quotation mark
                 break
             if character == self._REVERSE_SOLIDUS:
                 escape = True
@@ -163,12 +165,11 @@ class VDFDecoder(object):
             key += character
         self._key = key
 
-    def _next_parser(self, character):
-        if not self._key:
-            return self._parse_key()
+    def _next_parser(self, previous):
+        if self._key:
+            return self._parse_whitespace()
         else:
-            if character in self._WHITESPACE:
-                return self._parse_whitespace()
+            return self._parse_key()
 
     def feed(self, fragment):
         while fragment:
@@ -177,14 +178,12 @@ class VDFDecoder(object):
             if character == self._LINE_FEED:
                 self._line += 1
                 self._column = 1
-            if not self._parser:
-                self._parser = self._next_parser(character)
-                next(self._parser)
             try:
                 self._parser.send(character)
             except StopIteration:
-                self._parser = None
                 fragment = character + fragment
+                self._parser = self._next_parser(self._parser)
+                next(self._parser)
             except SyntaxError as exc:
                 raise VDFSyntaxError(self._line, self._column, str(exc))
 
