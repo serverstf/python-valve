@@ -1,4 +1,4 @@
-.. module:: valve.source.rcon
+.. module:: valve.rcon
 
 
 Source Remote Console (RCON)
@@ -6,10 +6,10 @@ Source Remote Console (RCON)
 
 The remote console (RCON) is available in all Source Dedicated Servers and
 it provides a way for server operators to access and administer their servers
-remotely. The :mod:`valve.source.rcon` module provides an implementation of
+remotely. The :mod:`valve.rcon` module provides an implementation of
 the RCON protocol.
 
-RCON is a request-response TCP based protocol with a simple authentication
+RCON is a TCP based request-response protocol with a simple authentication
 mechanism. The client initiates a connection with the server and attempts to
 authenticate by submitting a password. If authentication suceeds then the
 client is free to send further requests to the server in the same manner
@@ -31,7 +31,7 @@ Example
 
 .. code:: python
 
-    from valve.source.rcon import RCON
+    from valve.rcon import RCON
 
     SERVER_ADDRESS = ("...", 27015)
     PASSWORD = "top_secret"
@@ -71,7 +71,7 @@ won't need to worry about handling individual messages. However,
 :meth:`RCON.execute` returns these raw messages so their structure is
 documented below.
 
-.. autoclass:: Message
+.. autoclass:: RCONMessage
     :members:
     :special-members:
 
@@ -79,7 +79,7 @@ documented below.
 REPL via :func:`shell`
 ======================
 
-A small convenience function is provided by the :mod:`valve.source.rcon`
+A small convenience function is provided by the :mod:`valve.rcon`
 module for creating command-line REPL interfaces for RCON connections.
 
 .. autofunction:: shell
