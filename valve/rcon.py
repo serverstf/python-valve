@@ -5,6 +5,7 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
+import argparse
 import enum
 import errno
 import functools
@@ -12,6 +13,7 @@ import logging
 import select
 import socket
 import struct
+import sys
 
 import monotonic
 import six
@@ -542,7 +544,7 @@ class RCON(object):
     del _ensure
 
 
-def shell(rcon=None):
+def shell(address=None, password=None):
     """A simple interactive RCON shell.
 
     An existing, connected and authenticated :class:`RCON` object can be
@@ -554,3 +556,15 @@ def shell(rcon=None):
     :param rcon: the :class:`RCON` object to use for issuing commands
         or ``None``.
     """
+
+
+def _main(argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-a", "--address", metavar="HOST[:PORT]")
+    parser.add_argument("-p", "--password")
+    arguments = parser.parse_args()
+    shell(arguments.address, arguments.password)
+
+
+if __name__ == "__main__":
+    _main(sys.argv)
