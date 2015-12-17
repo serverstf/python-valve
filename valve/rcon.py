@@ -550,18 +550,71 @@ def shell(address=None, password=None):
     An existing, connected and authenticated :class:`RCON` object can be
     given otherwise the shell will prompt for connection details.
 
+    This will connect to the server identified by the given address using
+    the given password. If an address or password is not given then the shell
+    will prompt for it.
+
     Once connected the shell simply dispatches commands and prints the
     response to stdout.
 
-    :param rcon: the :class:`RCON` object to use for issuing commands
-        or ``None``.
+    :param address: a network address tuple containing the host and port
+        of the RCON server.
+    :param str password: the password for the server.
     """
+    print(address, password)
+
+
+def _parse_address(address):
+    """Parse a colon-separted address string into constituent parts.
+
+    Given a string like ``foo:1234`` this will split it into a tuple
+    containing ``foo`` and ``1234``, where ``1234`` is an integer.
+    If the port is not given in the address string then it will default
+    to 27015.
+
+    .. note::
+        This doesn't check that the host component of the address
+        is either a valid dotted-decimal IPv4 address or DNS label.
+
+    :raises argparse.ArgumentTypeError: if the given port does not appear
+        to be a valid port number.
+
+    :returns: a tuple containing the host as a string and the port as
+        an integer.
+    """
+    host_and_port = address.split(":", 1)
+    if len(host_and_port) == 2:
+        host, port_string = host_and_port
+    else:
+        host = host_and_port[0]
+        port_string = "27015"
+    try:
+        port = int(port_string)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "Could not parse address port "
+            "{!r} as a number".format(port_string))
+    if port < 0 or port > 65535:
+        raise argparse.ArgumentTypeError(
+            "Port number must be in the range 1 to 65535")
+    return host, port
 
 
 def _main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("-a", "--address", metavar="HOST[:PORT]")
-    parser.add_argument("-p", "--password")
+    parser.add_argument(
+        "-a",
+        "--address",
+        metavar="HOST[:PORT]",
+        type=_parse_address,
+        help=("Address of the server to connect to. If not "
+              "port number is not given it will default to 27015."),
+    )
+    parser.add_argument(
+        "-p",
+        "--password",
+        help="Password to use when authenticating with the server.",
+    )
     arguments = parser.parse_args()
     shell(arguments.address, arguments.password)
 
