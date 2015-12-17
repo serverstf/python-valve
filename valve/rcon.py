@@ -299,7 +299,7 @@ class RCON(object):
         This is a higher-level version of :meth:`execute` that always blocks
         and only returns the response body.
 
-        :raises RCONMEssageError: if the response body couldn't be decoded
+        :raises RCONMessageError: if the response body couldn't be decoded
             into a Unicode string.
 
         :returns: the response to the command as a Unicode string.
@@ -544,6 +544,30 @@ class RCON(object):
     del _ensure
 
 
+def execute(address, password, command):
+    """Execute a command on an RCON server.
+
+    This is a *very* high-level interface which connects to the given
+    RCON server using the provided credentials and executes a command.
+
+    :param address: the address of the server to connect to as a tuple
+        containing the host as a string and the port as an integer.
+    :param str password: the password to use to authenticate the connection.
+    :param str command: the command to execute on the server.
+
+    :raises RCONCommunicationError: if a connection to the RCON server
+        could not be made.
+    :raise RCONAuthenticationError: if authentication failed, either
+        due to being banned or providing the wrong password.
+    :raises RCONMessageError: if the response body couldn't be decoded
+        into a Unicode string.
+
+    :returns: the response to the command as a Unicode string.
+    """
+    with RCON(address, password) as rcon:
+        return rcon(command)
+
+
 def shell(address=None, password=None):
     """A simple interactive RCON shell.
 
@@ -601,7 +625,13 @@ def _parse_address(address):
 
 
 def _main(argv=None):
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Connect to an RCON server.",
+        epilog=("By default this will create a shell for connecting "
+                "to and issuing commands to an RCON server. Alternately, "
+                "if the --execute option is given then the given command "
+                "will be executed and the response printed to stdout. "),
+    )
     parser.add_argument(
         "-a",
         "--address",
@@ -615,8 +645,17 @@ def _main(argv=None):
         "--password",
         help="Password to use when authenticating with the server.",
     )
+    parser.add_argument(
+        "-e",
+        "--execute",
+        help="Command to execute on the server.",
+    )
     arguments = parser.parse_args()
-    shell(arguments.address, arguments.password)
+    if arguments.execute is None:
+        shell(arguments.address, arguments.password)
+    else:
+        print(execute(arguments.address,
+                      arguments.password, arguments.execute))
 
 
 if __name__ == "__main__":
