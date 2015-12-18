@@ -6,11 +6,14 @@ from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
 import argparse
+import collections
 import enum
 import errno
 import functools
 import logging
+import re
 import select
+import shlex
 import socket
 import struct
 import sys
@@ -20,6 +23,7 @@ import six
 
 
 log = logging.getLogger(__name__)
+_REGEX_CVARLIST = re.compile(r"--+\n(.+?)--+", re.MULTILINE | re.DOTALL)
 
 
 class RCONError(Exception):
@@ -568,6 +572,55 @@ def execute(address, password, command):
         return rcon(command)
 
 
+_ConVar = collections.namedtuple(
+    "_ConVar",
+    (
+        "name",
+        "value",
+        "flags",
+        "description",
+    )
+)
+_ConVar.__doc__ = """\
+Represents a console/command variable exposed by an RCON server.
+
+These are also often refered to as *Cvars* or some other stylised variant.
+
+:ivar str name: the name of the variable.
+:ivar str value: the value of the variable if there is one. This is always
+    a string but it may be possible to convert the contents to numeric
+    types depending on the cvar.
+:ivar frozenset flags: a set of flags set on the variable as strings. These
+    are the same as exposed by the ``cvarlist`` command.
+:ivar str description: an optional description for the variable. It may be
+    an empty string.
+"""
+
+def _get_convars(rcon):
+    """Get all ConVars for an RCON connection.
+
+    Given a connected :class:`RCON` this will issue a ``cvarlist`` command
+    to it in order to enumerate all available cvars.
+
+    :param RCON rcon: an established RCON connection.
+
+    :returns: an iterator of :class:`_ConVar`s which may be empty.
+    """
+    try:
+        cvarlist = rcon.execute("cvarlist").text
+    except UnicodeDecodeError:
+        return
+    match = _REGEX_CVARLIST.search(cvarlist)
+    if not match:
+        return
+    list_raw = match.groups()[0]
+    for line in list_raw.splitlines():
+        name, value, flags_raw, description = (
+            part.strip() for part in line.split(":", 3))
+        flags = frozenset(shlex.split(flags_raw.replace(",", "")))
+        yield _ConVar(name, value, flags, description)
+
+
 def shell(address=None, password=None):
     """A simple interactive RCON shell.
 
@@ -585,7 +638,9 @@ def shell(address=None, password=None):
         of the RCON server.
     :param str password: the password for the server.
     """
-    print(address, password)
+    with RCON(address, password) as rcon:
+        for convar in _get_convars(rcon):
+            pass
 
 
 def _parse_address(address):
