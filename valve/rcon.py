@@ -25,7 +25,6 @@ import six
 
 
 log = logging.getLogger(__name__)
-_REGEX_CVARLIST = re.compile(r"--+\n(.+?)--+", re.MULTILINE | re.DOTALL)
 
 
 class RCONError(Exception):
@@ -281,6 +280,8 @@ class _ResponseBuffer(object):
 
 class RCON(object):
     """Represents an RCON connection."""
+
+    _REGEX_CVARLIST = re.compile(r"--+\n(.+?)--+", re.MULTILINE | re.DOTALL)
 
     def __init__(self, address, password, timeout=None):
         self._address = address
@@ -547,6 +548,28 @@ class RCON(object):
             self._responses.discard()
             self._read()
 
+    def cvarlist(self):
+        """Get all ConVars for an RCON connection.
+
+        This will issue a ``cvarlist`` command to it in order to enumerate
+        all available ConVars.
+
+        :returns: an iterator of :class:`ConVar`s which may be empty.
+        """
+        try:
+            cvarlist = self.execute("cvarlist").text
+        except UnicodeDecodeError:
+            return
+        match = self._REGEX_CVARLIST.search(cvarlist)
+        if not match:
+            return
+        list_raw = match.groups()[0]
+        for line in list_raw.splitlines():
+            name, value, flags_raw, description = (
+                part.strip() for part in line.split(":", 3))
+            flags = frozenset(shlex.split(flags_raw.replace(",", "")))
+            yield _ConVar(name, value, flags, description)
+
     del _ensure
 
 
@@ -574,7 +597,7 @@ def execute(address, password, command):
         return rcon(command)
 
 
-_ConVarTuple = collections.namedtuple(
+_ConVar = collections.namedtuple(
     "_ConVar",
     (
         "name",
@@ -585,11 +608,11 @@ _ConVarTuple = collections.namedtuple(
 )
 
 
-class _ConVar(_ConVarTuple):
+class ConVar(_ConVar):
     """Represents a console/command variable exposed by an RCON server.
 
     These are also often refered to as *Cvars* or some other stylised
-        variant.
+    variant.
 
     :ivar str name: the name of the variable.
     :ivar str value: the value of the variable if there is one. This
@@ -606,31 +629,6 @@ class _ConVar(_ConVarTuple):
     def __repr__(self):
         return ("<{0.__class__.__name__} "
                 "{0.name!r} = {0.value!r}>".format(self))
-
-
-def _get_convars(rcon):
-    """Get all ConVars for an RCON connection.
-
-    Given a connected :class:`RCON` this will issue a ``cvarlist`` command
-    to it in order to enumerate all available cvars.
-
-    :param RCON rcon: an established RCON connection.
-
-    :returns: an iterator of :class:`_ConVar`s which may be empty.
-    """
-    try:
-        cvarlist = rcon.execute("cvarlist").text
-    except UnicodeDecodeError:
-        return
-    match = _REGEX_CVARLIST.search(cvarlist)
-    if not match:
-        return
-    list_raw = match.groups()[0]
-    for line in list_raw.splitlines():
-        name, value, flags_raw, description = (
-            part.strip() for part in line.split(":", 3))
-        flags = frozenset(shlex.split(flags_raw.replace(",", "")))
-        yield _ConVar(name, value, flags, description)
 
 
 class _RCONShell(cmd.Cmd):
@@ -654,7 +652,7 @@ class _RCONShell(cmd.Cmd):
             self._rcon = None
         else:
             self.prompt = "{0}:{1} ] ".format(*address)
-            self._convars = tuple(_get_convars(self._rcon))
+            self._convars = tuple(self._rcon.cvarlist())
 
     def disconnect(self):
         if self._rcon:
