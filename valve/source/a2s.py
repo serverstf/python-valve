@@ -89,7 +89,7 @@ class ServerQuerier(BaseServerQuerier):
         messages.InfoResponse.decode(self.get_response())
         return (time.time() - t_send) * 1000.0
 
-    def get_info(self):
+    def info(self):
         """Retreive information about the server state
 
         This returns the response from the server which implements
@@ -155,7 +155,7 @@ class ServerQuerier(BaseServerQuerier):
         self.request(messages.InfoRequest())
         return messages.InfoResponse.decode(self.get_response())
 
-    def get_players(self):
+    def players(self):
         """Retrive a list of all players connected to the server
 
         The following fields are available on the response:
@@ -198,7 +198,7 @@ class ServerQuerier(BaseServerQuerier):
         self.request(messages.PlayersRequest(challenge=challenge["challenge"]))
         return messages.PlayersResponse.decode(self.get_response())
 
-    def get_rules(self):
+    def rules(self):
         """Retreive the server's game mode configuration
 
         This method allows you capture a subset of a server's console
