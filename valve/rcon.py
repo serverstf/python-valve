@@ -7,9 +7,11 @@ from __future__ import (absolute_import,
 
 import argparse
 import collections
+import cmd
 import enum
 import errno
 import functools
+import getpass
 import logging
 import re
 import select
@@ -621,11 +623,71 @@ def _get_convars(rcon):
         yield _ConVar(name, value, flags, description)
 
 
+class _RCONShell(cmd.Cmd):
+
+    _INITIAL_PROMPT = "RCON ] "
+
+    def __init__(self):
+        super().__init__()
+        self.prompt = self._INITIAL_PROMPT
+        self._rcon = None
+        self._convars = ()
+
+    def connect(self, address, password):
+        self.disconnect()
+        self._rcon = RCON(address, password)
+        try:
+            self._rcon.connect()
+            self._rcon.authenticate()
+        except RCONError as exc:
+            print("Could not connect:", exc)
+            self._rcon = None
+        else:
+            self.prompt = "{0}:{1} ] ".format(*address)
+            self._convars = tuple(_get_convars(self._rcon))
+
+    def disconnect(self):
+        if self._rcon:
+            self._rcon.close()
+        self.prompt = self._INITIAL_PROMPT
+
+    def default(self, command):
+        if self._rcon:
+            response = self._rcon.execute(command).text
+            if response.endswith("\n"):
+                response = response[:-1]
+            print(response)
+        else:
+            print("Not connected. Use !connect to connect to a server.")
+
+    def completedefault(self, text, line, start_index, end_index):
+        return [convar.name for convar
+                in self._convars if convar.name.startswith(text)]
+
+    def do_shell(self, command_string):
+        split = shlex.split(command_string)
+        command, argv = split[0], split[1:]
+        if command == "exit":
+            return True
+        elif command == "connect":
+            parser = argparse.ArgumentParser(prog="!connect", add_help=False)
+            parser.add_argument(
+                "address", metavar="HOST[:PORT]", type=_parse_address)
+            parser.add_argument("password", metavar="PASSWORD", nargs="?")
+            try:
+                arguments = parser.parse_args(argv)
+            except SystemExit:
+                pass
+            else:
+                if arguments.password is None:
+                    arguments.password = getpass.getpass("Password: ")
+                self.connect(arguments.address, arguments.password)
+        elif command == "disconnect":
+            self.disconnect()
+
+
 def shell(address=None, password=None):
     """A simple interactive RCON shell.
-
-    An existing, connected and authenticated :class:`RCON` object can be
-    given otherwise the shell will prompt for connection details.
 
     This will connect to the server identified by the given address using
     the given password. If an address or password is not given then the shell
@@ -638,9 +700,14 @@ def shell(address=None, password=None):
         of the RCON server.
     :param str password: the password for the server.
     """
-    with RCON(address, password) as rcon:
-        for convar in _get_convars(rcon):
-            pass
+    rcon_shell = _RCONShell()
+    try:
+        if address:
+            rcon_shell.onecmd("!connect {0[0]}:{0[1]} {1}".format(
+                address, password if password else ""))
+        rcon_shell.cmdloop()
+    except KeyboardInterrupt:
+        pass
 
 
 def _parse_address(address):
