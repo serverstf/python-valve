@@ -574,7 +574,7 @@ def execute(address, password, command):
         return rcon(command)
 
 
-_ConVar = collections.namedtuple(
+_ConVarTuple = collections.namedtuple(
     "_ConVar",
     (
         "name",
@@ -583,20 +583,30 @@ _ConVar = collections.namedtuple(
         "description",
     )
 )
-_ConVar.__doc__ = """\
-Represents a console/command variable exposed by an RCON server.
 
-These are also often refered to as *Cvars* or some other stylised variant.
 
-:ivar str name: the name of the variable.
-:ivar str value: the value of the variable if there is one. This is always
-    a string but it may be possible to convert the contents to numeric
-    types depending on the cvar.
-:ivar frozenset flags: a set of flags set on the variable as strings. These
-    are the same as exposed by the ``cvarlist`` command.
-:ivar str description: an optional description for the variable. It may be
-    an empty string.
-"""
+class _ConVar(_ConVarTuple):
+    """Represents a console/command variable exposed by an RCON server.
+
+    These are also often refered to as *Cvars* or some other stylised
+        variant.
+
+    :ivar str name: the name of the variable.
+    :ivar str value: the value of the variable if there is one. This
+        is always a string but it may be possible to convert the contents
+        to numeric types depending on the cvar.
+    :ivar frozenset flags: a set of flags set on the variable as strings.
+        These are the same as exposed by the ``cvarlist`` command.
+    :ivar str description: an optional description for the variable. It
+        may be an empty string.
+    """
+
+    __slots__ = ()
+
+    def __repr__(self):
+        return ("<{0.__class__.__name__} "
+                "{0.name!r} = {0.value!r}>".format(self))
+
 
 def _get_convars(rcon):
     """Get all ConVars for an RCON connection.
