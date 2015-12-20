@@ -3,6 +3,8 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
+import textwrap
+
 import pytest
 import six
 
@@ -374,3 +376,61 @@ class TestRCON(object):
         request.addfinalizer(rcon.close)
         with pytest.raises(valve.rcon.RCONMessageError):
             rcon("")
+
+    @pytest.mark.timeout(timeout=3, method="thread")
+    def test_cvarlist(self, request, rcon_server):
+        cvarlist = textwrap.dedent("""
+        cvar list
+        --------------
+        foo                   : cmd      : , "a", "sv" : foo-description
+        bar                   : 5        :             : bar-description
+        --------------
+        2345 total convars/concommands
+        """)
+        e_request = rcon_server.expect(
+            0, valve.rcon.RCONMessage.Type.EXECCOMMAND, b"cvarlist")
+        e_request.respond(
+            0, valve.rcon.RCONMessage.Type.RESPONSE_VALUE, cvarlist)
+        e_request.respond_terminate_multi_part(0)
+        rcon = valve.rcon.RCON(rcon_server.server_address, b"")
+        rcon.connect()
+        rcon._authenticated = True
+        request.addfinalizer(rcon.close)
+        convars = list(rcon.cvarlist())
+        assert len(convars) == 2
+        assert convars[0].name == "foo"
+        assert convars[0].value == "cmd"
+        assert convars[0].flags == frozenset({"a", "sv"})
+        assert isinstance(convars[0].flags, frozenset)
+        assert convars[0].description == "foo-description"
+        assert convars[1].name == "bar"
+        assert convars[1].value == "5"
+        assert convars[1].flags == frozenset({})
+        assert isinstance(convars[1].flags, frozenset)
+        assert convars[1].description == "bar-description"
+
+    @pytest.mark.timeout(timeout=3, method="thread")
+    def test_cvarlist_text_bad(self, request, rcon_server):
+        e_request = rcon_server.expect(
+            0, valve.rcon.RCONMessage.Type.EXECCOMMAND, b"cvarlist")
+        e_request.respond(
+            0, valve.rcon.RCONMessage.Type.RESPONSE_VALUE, b"\xFF")
+        e_request.respond_terminate_multi_part(0)
+        rcon = valve.rcon.RCON(rcon_server.server_address, b"")
+        rcon.connect()
+        rcon._authenticated = True
+        request.addfinalizer(rcon.close)
+        assert list(rcon.cvarlist()) == []
+
+    @pytest.mark.timeout(timeout=3, method="thread")
+    def test_cvarlist_malformed(self, request, rcon_server):
+        e_request = rcon_server.expect(
+            0, valve.rcon.RCONMessage.Type.EXECCOMMAND, b"cvarlist")
+        e_request.respond(
+            0, valve.rcon.RCONMessage.Type.RESPONSE_VALUE, b"asdf")
+        e_request.respond_terminate_multi_part(0)
+        rcon = valve.rcon.RCON(rcon_server.server_address, b"")
+        rcon.connect()
+        rcon._authenticated = True
+        request.addfinalizer(rcon.close)
+        assert list(rcon.cvarlist()) == []

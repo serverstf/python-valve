@@ -281,7 +281,8 @@ class _ResponseBuffer(object):
 class RCON(object):
     """Represents an RCON connection."""
 
-    _REGEX_CVARLIST = re.compile(r"--+\n(.+?)--+", re.MULTILINE | re.DOTALL)
+    _REGEX_CVARLIST = re.compile(
+        r"-{2,}\n(.+?)-{2,}\n", re.MULTILINE | re.DOTALL)
 
     def __init__(self, address, password, timeout=None):
         self._address = address
@@ -788,5 +789,5 @@ def _main(argv=None):
                       arguments.password, arguments.execute))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     _main(sys.argv)
