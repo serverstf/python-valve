@@ -9,7 +9,6 @@ import argparse
 import collections
 import cmd
 import enum
-import errno
 import functools
 import getpass
 import logging
@@ -340,7 +339,8 @@ class RCON(object):
         """Determine if the connection has been closed."""
         return self._closed
 
-    def _timer(self, timeout):
+    @staticmethod
+    def _timer(timeout):
         """Iterable timeout timer.
 
         :param timeout: the number of seconds to wait before timing out.
@@ -353,7 +353,7 @@ class RCON(object):
         """
         time_start = monotonic.monotonic()
         while (timeout is None
-                or monotonic.monotonic() - time_start < timeout):
+               or monotonic.monotonic() - time_start < timeout):
             yield
         raise RCONTimeoutError
 
@@ -410,7 +410,7 @@ class RCON(object):
             except RCONError:
                 continue
 
-    def _ensure(state, value=True):
+    def _ensure(state, value=True):  # pylint: disable=no-self-argument
         """Decorator to ensure a connection is in a specific state.
 
         Use this to wrap a method so that it'll only be executed when
@@ -425,19 +425,21 @@ class RCON(object):
         :param bool value: the required value for the attribute.
         """
 
-        def decorator(function):
+        def decorator(function):  # pylint: disable=missing-docstring
 
             @functools.wraps(function)
-            def wrapper(instance, *args, **kwargs):
-                if not getattr(instance, state) is value:
+            def wrapper(instance, *args, **kwargs):  # pylint: disable=missing-docstring
+                if getattr(instance, state) is not value:
                     raise RCONError("Must {} {}".format(
                         "be" if value else "not be", state))
                 return function(instance, *args, **kwargs)
 
+            # pylint: disable=no-member
             if not wrapper.__doc__.endswith("\n"):
                 wrapper.__doc__ += "\n"
             wrapper.__doc__ += ("\n:raises RCONError: {} {}.".format(
                 "if" if value else "if not", state))
+            # pylint: enable=no-member
             return wrapper
 
         return decorator
@@ -745,7 +747,7 @@ def _parse_address(address):
         port_string = "27015"
     try:
         port = int(port_string)
-    except ValueError as exc:
+    except ValueError:
         raise argparse.ArgumentTypeError(
             "Could not parse address port "
             "{!r} as a number".format(port_string))
@@ -781,7 +783,7 @@ def _main(argv=None):
         "--execute",
         help="Command to execute on the server.",
     )
-    arguments = parser.parse_args()
+    arguments = parser.parse_args(argv)
     if arguments.execute is None:
         shell(arguments.address, arguments.password)
     else:
