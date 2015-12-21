@@ -47,7 +47,7 @@ try:
                             gamedir=u"tf",
                             map=u"ctf_2fort"):
         server = valve.source.a2s.ServerQuerier(address)
-        info = server.get_info()
+        info = server.info()
         players = server.get_players()
 
         print "{player_count}/{max_players} {server_name}".format(**info)

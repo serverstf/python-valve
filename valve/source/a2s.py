@@ -55,7 +55,7 @@ class ServerQuerier(BaseServerQuerier):
         # "TF2 currently does not split replies, expect A2S_PLAYER and
         # A2S_RULES to be simply cut off after 1260 bytes."
         #
-        # However whilst testing get_info() on a TF2 server, it did
+        # However whilst testing info() on a TF2 server, it did
         # set the split header to -2. So it is unclear whether the
         # warning means that only one fragment of the message is sent
         # or that the warning is no longer valid.
@@ -98,7 +98,7 @@ class ServerQuerier(BaseServerQuerier):
         .. code:: python
 
             server = ServerQuerier(...)
-            print server.get_info()["server_name"]
+            print server.info()["server_name"]
 
         The following fields are available on the response:
 
