@@ -791,7 +791,11 @@ def _parse_address(address):
     return host, port
 
 
-def _main(argv=None):
+def _main_argument_parser():
+    """Get argument parser for command-line interface.
+
+    :returns: an :class:`argparse.ArgumentParser` instance.
+    """
     parser = argparse.ArgumentParser(
         description="Connect to an RCON server.",
         epilog=("By default this will create a shell for connecting "
@@ -817,7 +821,11 @@ def _main(argv=None):
         "--execute",
         help="Command to execute on the server.",
     )
-    arguments = parser.parse_args(argv)
+    return parser
+
+
+def _main(argv=None):
+    arguments = _main_argument_parser().parse_args(argv)
     if arguments.execute is None:
         shell(arguments.address, arguments.password)
     else:
