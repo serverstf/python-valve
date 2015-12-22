@@ -677,6 +677,10 @@ class _RCONShell(cmd.Cmd):
         return commands + [convar.name for convar in
                            self._convars if convar.name.startswith(text)]
 
+    def do_exit(self, _):
+        print("Use !exit to exit this shell or "
+              "!shutdown to shutdown the server.")
+
     def do_shell(self, command_string):
         split = shlex.split(command_string)
         command, argv = split[0], split[1:]
@@ -696,6 +700,12 @@ class _RCONShell(cmd.Cmd):
                     arguments.password = getpass.getpass("Password: ")
                 self.connect(arguments.address, arguments.password)
         elif command == "disconnect":
+            self.disconnect()
+        elif command == "shutdown":
+            try:
+                self.default("exit")
+            except RCONCommunicationError:
+                pass
             self.disconnect()
 
 
