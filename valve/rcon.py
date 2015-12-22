@@ -733,15 +733,17 @@ def shell(address=None, password=None):
     """A simple interactive RCON shell.
 
     This will connect to the server identified by the given address using
-    the given password. If an address or password is not given then the shell
-    will prompt for it.
+    the given password. If a password is not given then the shell will
+    prompt for it. If no address is given, then no connection will be made
+    automatically and the user will have to do it manually using ``!connect``.
 
     Once connected the shell simply dispatches commands and prints the
     response to stdout.
 
     :param address: a network address tuple containing the host and port
         of the RCON server.
-    :param str password: the password for the server.
+    :param str password: the password for the server. This is ignored if
+        ``address`` is not given.
     """
     rcon_shell = _RCONShell()
     try:
@@ -783,7 +785,7 @@ def _parse_address(address):
         raise argparse.ArgumentTypeError(
             "Could not parse address port "
             "{!r} as a number".format(port_string))
-    if port < 0 or port > 65535:
+    if port <= 0 or port > 65535:
         raise argparse.ArgumentTypeError(
             "Port number must be in the range 1 to 65535")
     return host, port

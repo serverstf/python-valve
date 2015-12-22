@@ -3,6 +3,7 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
+import argparse
 import textwrap
 
 import pytest
@@ -434,3 +435,89 @@ class TestRCON(object):
         rcon._authenticated = True
         request.addfinalizer(rcon.close)
         assert list(rcon.cvarlist()) == []
+
+
+class TestExecute(object):
+
+    def test(self, rcon_server):
+        e1_request = rcon_server.expect(
+            0, valve.rcon.RCONMessage.Type.AUTH, b"password")
+        e1_request.respond(
+            0, valve.rcon.RCONMessage.Type.AUTH_RESPONSE, b"")
+        e2_request = rcon_server.expect(
+            0, valve.rcon.RCONMessage.Type.EXECCOMMAND, b"echo hello")
+        e2_request.respond(
+            0, valve.rcon.RCONMessage.Type.RESPONSE_VALUE, b"hello")
+        e2_request.respond_terminate_multi_part(0)
+        response = valve.rcon.execute(
+            rcon_server.server_address, "password", "echo hello")
+        assert response == "hello"
+        assert isinstance(response, six.text_type)
+
+
+class TestConVar(object):
+
+    def test_repr(self):
+        assert repr(valve.rcon.ConVar(
+            "foo", "bar", frozenset(), "")) == "<ConVar 'foo' = 'bar'>"
+
+
+class TestParseAddress(object):
+
+    def test(self):
+        assert valve.rcon._parse_address(
+            "localhost:9001") == ("localhost", 9001)
+
+    def test_port_default(self):
+        assert valve.rcon._parse_address("localhost") == ("localhost", 27015)
+
+    def test_port_not_a_number(self):
+        with pytest.raises(argparse.ArgumentTypeError):
+            valve.rcon._parse_address("localhost:asdf")
+
+    def test_port_too_small(self):
+        with pytest.raises(argparse.ArgumentTypeError):
+            valve.rcon._parse_address("localhost:0")
+
+    def test_port_too_big(self):
+        with pytest.raises(argparse.ArgumentTypeError):
+            valve.rcon._parse_address("localhost:65536")
+
+
+class TestShell(object):
+
+    def test_address_and_password(self, monkeypatch):
+        monkeypatch.setattr(valve.rcon, "_RCONShell", pytest.Mock())
+        shell = valve.rcon._RCONShell.return_value
+        valve.rcon.shell(("localhost", "9001"), "password")
+        assert shell.onecmd.call_args[0] == (
+            "!connect localhost:9001 password",)
+        assert shell.cmdloop.called
+
+    def test_address_only(self, monkeypatch):
+        monkeypatch.setattr(valve.rcon, "_RCONShell", pytest.Mock())
+        shell = valve.rcon._RCONShell.return_value
+        valve.rcon.shell(("localhost", "9001"))
+        assert shell.onecmd.call_args[0] == ("!connect localhost:9001 ",)
+        assert shell.cmdloop.called
+
+    def test_no_address(self, monkeypatch):
+        monkeypatch.setattr(valve.rcon, "_RCONShell", pytest.Mock())
+        shell = valve.rcon._RCONShell.return_value
+        valve.rcon.shell()
+        assert not shell.onecmd.called
+        assert shell.cmdloop.called
+
+    def test_password_only(self, monkeypatch):
+        monkeypatch.setattr(valve.rcon, "_RCONShell", pytest.Mock())
+        shell = valve.rcon._RCONShell.return_value
+        valve.rcon.shell(password="password")
+        assert not shell.onecmd.called
+        assert shell.cmdloop.called
+
+    def test_ignore_interrupt(self, monkeypatch):
+        monkeypatch.setattr(valve.rcon, "_RCONShell", pytest.Mock())
+        shell = valve.rcon._RCONShell.return_value
+        shell.cmdloop.side_effect = KeyboardInterrupt
+        valve.rcon.shell()
+        assert shell.cmdloop.called

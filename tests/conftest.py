@@ -5,6 +5,10 @@ from __future__ import (absolute_import,
 
 import threading
 
+try:
+    import mock
+except ImportError:
+    import unittest.mock as mock
 import pytest
 
 import valve.source.a2s
@@ -92,7 +96,11 @@ def pytest_generate_tests(metafunc):
 
 
 def pytest_namespace():
-    return {"srcds_functional": srcds_functional}
+    return {
+        "Mock": mock.Mock,
+        "MagicMock": mock.MagicMock,
+        "srcds_functional": srcds_functional,
+    }
 
 
 @pytest.yield_fixture
