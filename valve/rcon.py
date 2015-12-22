@@ -682,6 +682,9 @@ class _RCONShell(cmd.Cmd):
         else:
             print("Not connected. Use !connect to connect to a server.")
 
+    def emptyline(self):
+        """Do nothing."""
+
     def completenames(self, text, line, start_index, end_index):
         commands = super(_RCONShell, self).completenames(
             text, line, start_index, end_index)
