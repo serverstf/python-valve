@@ -24,7 +24,7 @@ score-decesending.
 
     server = valve.source.a2s.ServerQuerier(SERVER_ADDRESS)
     info = server.info()
-    players = server.get_players()
+    players = server.players()
 
     print "{player_count}/{max_players} {server_name}".format(**info)
     for player in sorted(players["players"],
