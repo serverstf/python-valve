@@ -18,6 +18,7 @@ import shlex
 import socket
 import struct
 import sys
+import textwrap
 
 import monotonic
 import six
@@ -637,6 +638,14 @@ class ConVar(_ConVar):
 class _RCONShell(cmd.Cmd):
 
     _INITIAL_PROMPT = "RCON ] "
+    _HELP_TEXT = textwrap.dedent("""\
+        <convar> [...]      Run a command on the server.
+        help <convar>       Find help about a convar/concommand.
+        !connect            Connect to an RCON server.
+        !disconnect         Disconnect from the current server.
+        !exit               Exit this shell.
+        !shutdown           Shutdown the server.
+        """).rstrip("\n")
 
     def __init__(self):
         super().__init__()
@@ -660,6 +669,8 @@ class _RCONShell(cmd.Cmd):
     def disconnect(self):
         if self._rcon:
             self._rcon.close()
+            self._rcon = None
+        self._convars = ()
         self.prompt = self._INITIAL_PROMPT
 
     def default(self, command):
@@ -680,6 +691,12 @@ class _RCONShell(cmd.Cmd):
     def do_exit(self, _):
         print("Use !exit to exit this shell or "
               "!shutdown to shutdown the server.")
+
+    def do_help(self, command):
+        if command in (c.name for c in self._convars):
+            self.default("help " + command)
+        else:
+            print(self._HELP_TEXT)
 
     def do_shell(self, command_string):
         split = shlex.split(command_string)
