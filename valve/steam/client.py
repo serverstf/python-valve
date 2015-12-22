@@ -8,6 +8,7 @@
 """
 
 import itertools
+# TODO: Cross platform support.
 import _winreg as winreg
 import os
 
@@ -60,7 +61,7 @@ class SteamClient(object):
 
     def _get_registry_key(self, *args):
         args = list(itertools.chain(*[str(arg).split("\\") for arg in args]))
-        sub_key = "Software\\Valve\Steam\\" + "\\".join(args[:-1])
+        sub_key = "Software\\Valve\\Steam\\" + "\\".join(args[:-1])
         if self.registry_access_flag is not None:
             access_flag = self.registry_access_flag | winreg.KEY_QUERY_VALUE
         else:

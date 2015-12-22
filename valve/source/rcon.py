@@ -18,31 +18,72 @@ import time
 
 WOULDBLOCK = [errno.EAGAIN, errno.EWOULDBLOCK]
 if os.name == "nt":
+    # pylint: disable=no-member
     WOULDBLOCK.append(errno.WSAEWOULDBLOCK)
+    # pylint: enable=no-member
 
 
 class IncompleteMessageError(Exception):
+    """
+        Module specific exception.
+    """
     pass
 
 
 class AuthenticationError(Exception):
+    """
+        Module specific exception.
+    """
     pass
 
 
 class NoResponseError(Exception):
+    """
+        Module specific exception.
+    """
     pass
 
 
+class ResponseContextManager(object):
+    """
+        Response context manager.
+    """
+
+    def __init__(self, rcon, request, timeout):
+        self.rcon = rcon
+        self.request = request
+        self.timeout = timeout
+
+    def __enter__(self):
+        time_left = self.timeout
+        while self.request.response is None:
+            time_start = time.time()
+            try:
+                self.rcon.process()
+            except IncompleteMessageError:
+                pass
+            time_left -= time.time() - time_start
+            if time_left < 0:
+                raise NoResponseError
+        return self.request.response
+
+    def __exit__(self, my_type, value, traceback):
+        pass
+
+
 class Message(object):
+    """
+        Message
+    """
 
     SERVERDATA_AUTH = 3
     SERVERDATA_AUTH_RESPONSE = 2
     SERVERDATA_EXECCOMAND = 2
     SERVERDATA_RESPONSE_VALUE = 0
 
-    def __init__(self, id, type, body=""):
-        self.id = id
-        self.type = type
+    def __init__(self, identifier, my_type, body=""):
+        self.identifier = identifier
+        self.type = my_type
         self.body = body
         self.response = None
 
@@ -55,7 +96,7 @@ class Message(object):
         }
         return "{type} ({id}) '{body}'".format(
             type=types.get(self.type, "INVALID"),
-            id=self.id,
+            id=self.identifier,
             body=" ".join([c.encode("hex") for c in self.body])
         )
 
@@ -74,11 +115,11 @@ class Message(object):
         by a null-terimnated ASCII-encoded string and a further trailing null
         terminator.
         """
-        return (struct.pack(b"<iii", self.size, self.id, self.type) +
+        return (struct.pack(b"<iii", self.size, self.identifier, self.type) +
                 self.body.encode("ascii") + b"\x00\x00")
 
     @classmethod
-    def decode(cls, buffer):
+    def decode(cls, my_buffer):
         """
             Will attempt to decode a single message from a byte buffer,
             returning a corresponding Message instance and the remaining
@@ -88,20 +129,24 @@ class Message(object):
             IncompleteMessageError is raised.
         """
 
-        if len(buffer) < struct.calcsize(b"<i"):
+        if len(my_buffer) < struct.calcsize(b"<i"):
             raise IncompleteMessageError
-        size = struct.unpack(b"<i", buffer[:4])[0]
-        if len(buffer) - struct.calcsize(b"<i") < size:
+        size = struct.unpack(b"<i", my_buffer[:4])[0]
+        if len(my_buffer) - struct.calcsize(b"<i") < size:
             raise IncompleteMessageError
-        packet = buffer[:size + 4]
-        buffer = buffer[size + 4:]
-        id = struct.unpack(b"<i", packet[4:8])[0]
-        type = struct.unpack(b"<i", packet[8:12])[0]
+        packet = my_buffer[:size + 4]
+        my_buffer = my_buffer[size + 4:]
+        identifier = struct.unpack(b"<i", packet[4:8])[0]
+        my_type = struct.unpack(b"<i", packet[8:12])[0]
         body = packet[12:][:-2].decode("ascii", "ignore")
-        return cls(id, type, body), buffer
+        return cls(identifier, my_type, body), my_buffer
 
 
+# pylint: disable=too-many-instance-attributes
 class RCON(object):
+    """
+        RCON Handle
+    """
 
     def __init__(self, address, password=None, timeout=10.0):
         self.host = address[0]
@@ -148,26 +193,29 @@ class RCON(object):
         self._socket.settimeout(0.0)
 
     def disconnect(self):
+        """
+            Close active connection.
+        """
         self._socket.close()
         self.is_authenticated = False
 
-    def request(self, type, body=u""):
+    def request(self, my_type, body=u""):
         """
             Send a message to server.
 
-            If type is SEVERDATA_EXECCOMAND
+            If my_type is SEVERDATA_EXECCOMAND
             an addtional SERVERDATA_RESPONSE_VALUE is sent in order
             to facilitate correct processing of multi-packet responses.
         """
 
-        request = Message(self._next_id, type, body)
-        self._active_requests[request.id] = request
+        request = Message(self._next_id, my_type, body)
+        self._active_requests[request.identifier] = request
         self._next_id += 1
         self._socket.sendall(request.encode())
         # Must send a SERVERDATA_RESPONSE_VALUE after EXECCOMMAND
         # in order to handle multi-packet responses as per
         # https://developer.valvesoftware.com/wiki/RCON#Multiple-packet_Responses
-        if type == Message.SERVERDATA_EXECCOMAND:
+        if my_type == Message.SERVERDATA_EXECCOMAND:
             self.request(Message.SERVERDATA_RESPONSE_VALUE)
         return request
 
@@ -190,9 +238,9 @@ class RCON(object):
             response = Message(self._response[0].id,
                                self._response[0].type,
                                "".join([r.body for r in self._response]))
-            self._active_requests[response.id].response = response
+            self._active_requests[response.identifier].response = response
             self._response = []
-            self._active_requests[response.id]
+            self._active_requests[response.identifier]
         elif response.type == Message.SERVERDATA_RESPONSE_VALUE:
             self._response.append(response)
         elif response.type == Message.SERVERDATA_AUTH_RESPONSE:
@@ -200,39 +248,16 @@ class RCON(object):
             # Clear empty SERVERDATA_RESPONSE_VALUE sent before
             # SERVERDATA_AUTH_RESPONSE
             self._response = []
-            self._active_requests[response.id]
+            self._active_requests[response.identifier]
 
     def response_to(self, request, timeout=None):
         """
             Returns a context manager that waits up to a given time for
             a response to a specific request. Assumes the request has
-            actually been sent to an RCON server.
+                actually been sent to an RCON server.
 
             If the timeout period is exceeded, NoResponseError is raised.
         """
-
-        class ResponseContextManager(object):
-
-            def __init__(self, rcon, request, timeout):
-                self.rcon = rcon
-                self.request = request
-                self.timeout = timeout
-
-            def __enter__(self):
-                time_left = self.timeout
-                while self.request.response is None:
-                    time_start = time.time()
-                    try:
-                        self.rcon.process()
-                    except IncompleteMessageError:
-                        pass
-                    time_left -= time.time() - time_start
-                    if time_left < 0:
-                        raise NoResponseError
-                return self.request.response
-
-            def __exit__(self, type, value, tb):
-                pass
 
         if timeout is None:
             timeout = self.timeout
@@ -276,20 +301,28 @@ class RCON(object):
                 pass
         return request
 
+# pylint: enable=too-many-instance-attributes
+
+# TODO: Make the interactive rcon shell a class.
+def prompt(rcon, prompt_format=None):
+    """
+        Get user input.
+    """
+    if prompt_format:
+        return raw_input("{}: ".format(prompt_format))
+    else:
+        return raw_input("{}:{}>".format(rcon.host, rcon.port))
 
 def shell(rcon=None):
-
-    def prompt(prompt=None):
-        if prompt:
-            return raw_input("{}: ".format(prompt))
-        else:
-            return raw_input("{}:{}>".format(rcon.host, rcon.port))
+    """
+        Start interactive RCON shell.
+    """
 
     if rcon is None:
-        rcon = RCON((prompt("host"), int(prompt("port"))))
+        rcon = RCON((prompt(rcon, "host"), int(prompt("port"))))
     if not rcon.is_authenticated:
-        rcon.authenticate(prompt("password"))
+        rcon.authenticate(prompt(rcon, "password"))
     while True:
-        cmd = rcon.execute(prompt())
+        cmd = rcon.execute(prompt(rcon))
         with rcon.response_to(cmd) as response:
             print(response.body)

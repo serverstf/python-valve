@@ -20,14 +20,14 @@ UNIVERSE_INTERNAL = 3  #:
 UNIVERSE_DEV = 4  #:
 UNIVERSE_RC = 5  #:
 
-_universes = [
+_UNIVERSES = [
     UNIVERSE_INDIVIDUAL,
     UNIVERSE_PUBLIC,
     UNIVERSE_BETA,
     UNIVERSE_INTERNAL,
     UNIVERSE_DEV,
     UNIVERSE_RC,
-    ]
+]
 
 TYPE_INVALID = 0  #:
 TYPE_INDIVIDUAL = 1  #:
@@ -41,7 +41,7 @@ TYPE_CHAT = 8  #:
 TYPE_P2P_SUPER_SEEDER = 9  #:
 TYPE_ANON_USER = 10  #:
 
-_types = [
+_TYPES = [
     TYPE_INVALID,
     TYPE_INDIVIDUAL,
     TYPE_MULTISEAT,
@@ -53,24 +53,24 @@ _types = [
     TYPE_CHAT,
     TYPE_P2P_SUPER_SEEDER,
     TYPE_ANON_USER,
-    ]
+]
 
-type_letter_map = {
+TYPE_LETTER_MAP = {
     TYPE_INDIVIDUAL: "U",
     TYPE_CLAN: "g",
     TYPE_CHAT: "T",
-    }
-letter_type_map = {v: k for k, v in type_letter_map.items()}
+}
+LETTER_TYPE_MAP = {v: k for k, v in TYPE_LETTER_MAP.items()}
 
-type_url_path_map = {
+TYPE_URL_PATH_MAP = {
     TYPE_INDIVIDUAL: ["profiles", "id"],
     TYPE_CLAN: ["groups", "gid"],
-    }
+}
 
 # These shall be left as homage to Great Line-feed Drought of 2013
-textual_id_regex = re.compile(r"^STEAM_(?P<X>\d+):(?P<Y>\d+):(?P<Z>\d+)$")
-community32_regex = re.compile(r".*/(?P<path>{paths})/\[(?P<type>[{type_chars}]):1:(?P<W>\d+)\]$".format(paths="|".join("|".join(paths) for paths in type_url_path_map.values()), type_chars="".join(c for c in type_letter_map.values())))
-community64_regex = re.compile(r".*/(?P<path>{paths})/(?P<W>\d+)$".format(paths="|".join("|".join(paths) for paths in type_url_path_map.values())))
+TEXTUAL_ID_REGEX = re.compile(r"^STEAM_(?P<X>\d+):(?P<Y>\d+):(?P<Z>\d+)$")
+COMMUNITY32_REGEX = re.compile(r".*/(?P<path>{paths})/\[(?P<type>[{type_chars}]):1:(?P<W>\d+)\]$".format(paths="|".join("|".join(paths) for paths in TYPE_URL_PATH_MAP.values()), type_chars="".join(c for c in TYPE_LETTER_MAP.values())))
+COMMUNITY64_REGEX = re.compile(r".*/(?P<path>{paths})/(?P<W>\d+)$".format(paths="|".join("|".join(paths) for paths in TYPE_URL_PATH_MAP.values())))
 
 
 class SteamIDError(ValueError):
@@ -138,7 +138,7 @@ class SteamID(object):
     base_community_url = "http://steamcommunity.com/"
 
     @classmethod
-    def from_community_url(cls, id, universe=UNIVERSE_INDIVIDUAL):
+    def from_community_url(cls, identifier, universe=UNIVERSE_INDIVIDUAL):
         """Parse a Steam community URL into a :class:`.SteamID` instance
 
         This takes a Steam community URL for a profile or group and converts
@@ -153,39 +153,39 @@ class SteamID(object):
         Raises :class:`.SteamIDError` if the URL cannot be parsed.
         """
 
-        url = urlparse.urlparse(id)
-        match = community32_regex.match(url.path)
+        url = urlparse.urlparse(identifier)
+        match = COMMUNITY32_REGEX.match(url.path)
         if match:
             if (match.group("path") not in
-                    type_url_path_map[letter_type_map[match.group("type")]]):
+                    TYPE_URL_PATH_MAP[LETTER_TYPE_MAP[match.group("type")]]):
                 warnings.warn("Community URL ({}) path doesn't "
                               "match type character".format(url.path))
             w = int(match.group("W"))
             y = w & 1
             z = (w - y) / 2
-            return cls(z, y, letter_type_map[match.group("type")], universe)
-        match = community64_regex.match(url.path)
+            return cls(z, y, LETTER_TYPE_MAP[match.group("type")], universe)
+        match = COMMUNITY64_REGEX.match(url.path)
         if match:
             w = int(match.group("W"))
             y = w & 1
-            if match.group("path") in type_url_path_map[TYPE_INDIVIDUAL]:
+            if match.group("path") in TYPE_URL_PATH_MAP[TYPE_INDIVIDUAL]:
                 z = (w - y - 0x0110000100000000) / 2
-                type = TYPE_INDIVIDUAL
-            elif match.group("path") in type_url_path_map[TYPE_CLAN]:
+                my_type = TYPE_INDIVIDUAL
+            elif match.group("path") in TYPE_URL_PATH_MAP[TYPE_CLAN]:
                 z = (w - y - 0x0170000000000000) / 2
-                type = TYPE_CLAN
-            return cls(z, y, type, universe)
+                my_type = TYPE_CLAN
+            return cls(z, y, my_type, universe)
         raise SteamIDError("Invalid Steam community URL ({})".format(url))
 
     @classmethod
-    def from_text(cls, id, type=TYPE_INDIVIDUAL):
+    def from_text(cls, identifier, my_type=TYPE_INDIVIDUAL):
         """Parse a SteamID in the STEAM_X:Y:Z form
 
         Takes a teaxtual SteamID in the form STEAM_X:Y:Z and returns
         a corresponding :class:`.SteamID` instance. The X represents the
         account's 'universe,' Z is the account number and Y is either 1 or 0.
 
-        As the account type cannot be directly inferred from the SteamID
+        As the account my_type cannot be directly inferred from the SteamID
         it must be explicitly specified, defaulting to :data:`TYPE_INDIVIDUAL`.
 
         The two special IDs ``STEAM_ID_PENDING`` and ``UNKNOWN`` are also
@@ -194,26 +194,26 @@ class SteamID(object):
         and with all other components of the ID set to zero.
         """
 
-        if id == "STEAM_ID_PENDING":
+        if identifier == "STEAM_ID_PENDING":
             return cls(0, 0, TYPE_PENDING, 0)
-        if id == "UNKNOWN":
+        if identifier == "UNKNOWN":
             return cls(0, 0, TYPE_INVALID, 0)
-        match = textual_id_regex.match(id)
+        match = TEXTUAL_ID_REGEX.match(identifier)
         if not match:
             raise SteamIDError("ID '{}' doesn't match format {}".format(
-                id, textual_id_regex.pattern))
+                identifier, TEXTUAL_ID_REGEX.pattern))
         return cls(
             int(match.group("Z")),
             int(match.group("Y")),
-            type,
+            my_type,
             int(match.group("X"))
         )
 
-    def __init__(self, account_number, instance, type, universe):
-        if universe not in _universes:
+    def __init__(self, account_number, instance, my_type, universe):
+        if universe not in _UNIVERSES:
             raise SteamIDError("Invalid universe {}".format(universe))
-        if type not in _types:
-            raise SteamIDError("Invalid type {}".format(type))
+        if my_type not in _TYPES:
+            raise SteamIDError("Invalid type {}".format(my_type))
         if account_number < 0 or account_number > (2**32) - 1:
             raise SteamIDError(
                 "Account number ({}) out of range".format(account_number))
@@ -222,7 +222,7 @@ class SteamID(object):
                 "Expected instance to be 1 or 0, got {}".format(instance))
         self.account_number = account_number  # Z
         self.instance = instance  # Y
-        self.type = type
+        self.type = my_type
         self.universe = universe  # X
 
     @property
@@ -302,7 +302,7 @@ class SteamID(object):
 
         try:
             return "[{}:1:{}]".format(
-                type_letter_map[self.type],
+                TYPE_LETTER_MAP[self.type],
                 (self.account_number * 2) + self.instance
             )
         except KeyError:
@@ -332,7 +332,7 @@ class SteamID(object):
         try:
             return urlparse.urljoin(
                 self.__class__.base_community_url,
-                "/".join((type_url_path_map[self.type][0], path_func()))
+                "/".join((TYPE_URL_PATH_MAP[self.type][0], path_func()))
             )
         except KeyError:
             raise SteamIDError(

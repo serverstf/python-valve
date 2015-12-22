@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2014-2015 Oliver Ainsworth
 
+"""
+    Utillity Classes
+"""
+
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
@@ -248,6 +252,8 @@ class ServerType(object):
 
     @property
     def char(self):
+        """Calls `chr` on object's value.
+        """
         return chr(self.value)
 
 

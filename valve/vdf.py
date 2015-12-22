@@ -24,6 +24,8 @@ ALWAYS = 0
 UNQUOTED = 1
 NEVER = 2
 
+CURRENT = -1
+PREVIOUS = -2
 
 def coerce_type(token):
     """
@@ -52,6 +54,7 @@ def coerce_type(token):
 
 
 # Largely based on necavi's https://github.com/necavi/py-keyvalues
+# TODO: reduce complexity
 def loads(src, encoding=None, coerce_=UNQUOTED):
     """
         Loades a VDF string into a series of nested dictionaries.
@@ -203,15 +206,13 @@ def loads(src, encoding=None, coerce_=UNQUOTED):
             exc.message, src[i], line, col))
     dict_ = {}
     dict_stack = [dict_]
-    CURRENT = -1
-    PREVIOUS = -2
-    for type, key, value, should_coerce in pairs[1:]:
-        if type == _KV_BLOCK:
+    for my_type, key, value, should_coerce in pairs[1:]:
+        if my_type == _KV_BLOCK:
             dict_stack.append({})
             dict_stack[PREVIOUS][key] = dict_stack[CURRENT]
-        elif type == _KV_BLOCKEND:
+        elif my_type == _KV_BLOCKEND:
             dict_stack = dict_stack[:CURRENT]
-        elif type == _KV_PAIR:
+        elif my_type == _KV_PAIR:
             dict_stack[CURRENT][key] = (coerce_type(value) if
                                         should_coerce else value)
         # else:
@@ -220,14 +221,14 @@ def loads(src, encoding=None, coerce_=UNQUOTED):
     return dict_
 
 
-def load(fp, encoding=None, coerce_=UNQUOTED):
+def load(file_handle, encoding=None, coerce_=UNQUOTED):
     """
         Same as loads but takes a file-like object as the source.
     """
-    return loads(fp.read(), encoding, coerce_)
+    return loads(file_handle.read(), encoding, coerce_)
 
 
-def dumps(obj, encoding=None, indent=u"    ", object_encoders={}):
+def dumps(obj, encoding=None, indent=u"    ", object_encoders=None):
     """
         Serialises a series of nested dictionaries to the VDF/KeyValues
         format and returns it as a string.
@@ -247,6 +248,9 @@ def dumps(obj, encoding=None, indent=u"    ", object_encoders={}):
         textual representaiton may also be 'wrong.'
     """
 
+    if not object_encoders:
+        object_encoders = dict()
+
     object_codecs = {
         float: lambda v: unicode(repr(v / 1.0)),
     }
@@ -256,6 +260,8 @@ def dumps(obj, encoding=None, indent=u"    ", object_encoders={}):
     lines = []
 
     def recurse_obj(obj, indent_level=0):
+        """Recursive object
+        """
         ind = indent * indent_level
         for key, value in obj.iteritems():
             if isinstance(value, dict):
@@ -278,10 +284,12 @@ def dumps(obj, encoding=None, indent=u"    ", object_encoders={}):
         return u"\n".join(lines)
 
 
-def dump(obj, fp, encoding, indent=u"    ", object_encoders={}):
+def dump(obj, file_handle, encoding, indent=u"    ", object_encoders=None):
     """
-        Same as dumps but takes a file-like object 'fp' which will be
+        Same as dumps but takes a file-like object 'file_handle' which will be
         written to.
     """
+    if not object_encoders:
+        object_encoders = dict()
 
-    return fp.write(dumps(obj, encoding, indent, object_encoders))
+    return file_handle.write(dumps(obj, encoding, indent, object_encoders))

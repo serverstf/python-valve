@@ -23,9 +23,9 @@ from ... import vdf
 API_RESPONSE_FORMATS = {"json", "vdf", "xml"}
 
 
-def api_response_format(format):
-    if format not in API_RESPONSE_FORMATS:
-        raise ValueError("Bad response format {!r}".format(format))
+def api_response_format(my_format):
+    if my_format not in API_RESPONSE_FORMATS:
+        raise ValueError("Bad response format {!r}".format(my_format))
 
     def decorator(function):
 
@@ -107,6 +107,8 @@ PARAMETER_TYPES = {
 
 
 class BaseInterface(object):
+
+    name = str()
 
     def __init__(self, api):
         self._api = api
@@ -350,8 +352,10 @@ def make_interfaces(api_list, versions):
 class API(object):
 
     api_root = "https://api.steampowered.com/"
+    _interfaces = None
 
-    def __init__(self, key=None, format="json", versions=None, interfaces=None):
+    def __init__(self, key=None, my_format="json", versions=None,
+                 interfaces=None):
         """Initialise an API wrapper
 
         The API is usable without an API key but exposes significantly less
@@ -361,8 +365,8 @@ class API(object):
         the Steam Web API and turn it into a more usable Python object, such as
         dictionary. The Steam API it self can generate responses in either
         JSON, XML or VDF. The formatter callables should have an attribute
-        ``format`` which is a string indicating which textual format they
-        handle. For convenience the ``format`` parameter also accepts the
+        ``my_format`` which is a string indicating which textual format they
+        handle. For convenience the ``my_format`` parameter also accepts the
         strings ``json``, ``xml`` and ``vdf`` which are mapped to the
         :func:`json_format`, :func:`etree_format` and :func:`vdf_format`
         formatters respectively.
@@ -381,24 +385,24 @@ class API(object):
         behaviour is to use the method with the highest version number.
 
         :param str key: a Steam Web API key.
-        :param format: response formatter.
+        :param my_format: response formatter.
         :param versions: the interface method versions to use.
         :param interfaces: a module containing :class:`BaseInterface`
             subclasses or ``None`` if they should be loaded for the first time.
         """
         self.key = key
-        if format == "json":
-            format = json_format
-        elif format == "xml":
-            format = etree_format
-        elif format == "vdf":
-            format = vdf_format
-        self.format = format
+        if my_format == "json":
+            my_format = json_format
+        elif my_format == "xml":
+            my_format = etree_format
+        elif my_format == "vdf":
+            my_format = vdf_format
+        self.format = my_format
         self._session = requests.Session()
         if interfaces is None:
             self._interfaces_module = make_interfaces(
                 self.request("GET", "ISteamWebAPIUtil",
-                             "GetSupportedAPIList", 1, format=json_format),
+                             "GetSupportedAPIList", 1, my_format=json_format),
                 versions or {},
             )
         else:
@@ -428,37 +432,40 @@ class API(object):
                 # Not a class
                 continue
 
+    # pylint: disable=unused-argument
     def request(self, http_method, interface,
-                method, version, params=None, format=None):
+                method, version, params=None, my_format=None):
         """Issue a HTTP request to the Steam Web API
 
         This is called indirectly by interface methods and should rarely be
         called directly. The response to the request is passed through the
         response formatter which is then returned.
 
-        :param str interface: the name of the interface.
-        :param str method: the name of the method on the interface.
-        :param int version: the version of the method.
+        :param str interface: the name of the interface. (UNUSED)
+        :param str method: the name of the method on the interface. (UNUSED)
+        :param int version: the version of the method. (UNUSED)
         :param params: a mapping of GET or POST data to be sent with the
             request.
-        :param format: a response formatter callable to overide :attr:`format`.
+        :param my_format: a response formatter callable to
+            overide :attr:`my_format`.
         """
         if params is None:
             params = {}
-        if format is None:
-            format = self.format
+        if my_format is None:
+            my_format = self.format
         path = "{interface}/{method}/v{version}/".format(**locals())
-        if format.format not in API_RESPONSE_FORMATS:
+        if my_format.format not in API_RESPONSE_FORMATS:
             raise ValueError("Response formatter specifies its format as "
                              "{!r}, but only 'json', 'xml' and 'vdf' "
-                             "are permitted values".format(format.format))
-        params["format"] = format.format
+                             "are permitted values".format(my_format.format))
+        params["format"] = my_format.format
         if "key" in params:
             del params["key"]
         if self.key:
             params["key"] = self.key
-        return format(self._session.request(http_method,
+        return my_format(self._session.request(http_method,
                                             self.api_root + path, params).text)
+    # pylint: enable=unused-argument
 
     @contextlib.contextmanager
     def session(self):
