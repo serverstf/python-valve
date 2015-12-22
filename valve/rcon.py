@@ -671,9 +671,11 @@ class _RCONShell(cmd.Cmd):
         else:
             print("Not connected. Use !connect to connect to a server.")
 
-    def completedefault(self, text, line, start_index, end_index):
-        return [convar.name for convar
-                in self._convars if convar.name.startswith(text)]
+    def completenames(self, text, line, start_index, end_index):
+        commands = super(_RCONShell, self).completenames(
+            text, line, start_index, end_index)
+        return commands + [convar.name for convar in
+                           self._convars if convar.name.startswith(text)]
 
     def do_shell(self, command_string):
         split = shlex.split(command_string)
@@ -792,4 +794,4 @@ def _main(argv=None):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    _main(sys.argv)
+    _main()
