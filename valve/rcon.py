@@ -660,7 +660,7 @@ class ConVar(_ConVar):
 
     def __repr__(self):
         return ("<{0.__class__.__name__} "
-                "{0.name!r} = {0.value!r}>".format(self))
+                "'{0.name}' = '{0.value}'>".format(self))
 
 
 class _RCONShell(cmd.Cmd):
