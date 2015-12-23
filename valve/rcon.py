@@ -703,10 +703,15 @@ class _RCONShell(cmd.Cmd):
 
     def default(self, command):
         if self._rcon:
-            response = self._rcon.execute(command).text
-            if response.endswith("\n"):
-                response = response[:-1]
-            print(response)
+            try:
+                response = self._rcon.execute(command).text
+            except RCONCommunicationError:
+                print("Lost connection to server.")
+                self.disconnect()
+            else:
+                if response.endswith("\n"):
+                    response = response[:-1]
+                print(response)
         else:
             print("Not connected. Use !connect to connect to a server.")
 
@@ -750,12 +755,7 @@ class _RCONShell(cmd.Cmd):
         elif command == "disconnect":
             self.disconnect()
         elif command == "shutdown":
-            try:
-                self.default("exit")
-            except RCONCommunicationError:
-                pass
-            self.disconnect()
-
+            self.default("exit")
 
 def shell(address=None, password=None):
     """A simple interactive RCON shell.
