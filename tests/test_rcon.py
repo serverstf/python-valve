@@ -6,6 +6,7 @@ from __future__ import (absolute_import,
 import argparse
 import textwrap
 
+import docopt
 import pytest
 import six
 
@@ -472,15 +473,15 @@ class TestParseAddress(object):
         assert valve.rcon._parse_address("localhost") == ("localhost", 27015)
 
     def test_port_not_a_number(self):
-        with pytest.raises(argparse.ArgumentTypeError):
+        with pytest.raises(ValueError):
             valve.rcon._parse_address("localhost:asdf")
 
     def test_port_too_small(self):
-        with pytest.raises(argparse.ArgumentTypeError):
+        with pytest.raises(ValueError):
             valve.rcon._parse_address("localhost:0")
 
     def test_port_too_big(self):
-        with pytest.raises(argparse.ArgumentTypeError):
+        with pytest.raises(ValueError):
             valve.rcon._parse_address("localhost:65536")
 
 
@@ -521,3 +522,66 @@ class TestShell(object):
         shell.cmdloop.side_effect = KeyboardInterrupt
         valve.rcon.shell()
         assert shell.cmdloop.called
+
+
+class TestMain(object):
+
+    @pytest.fixture
+    def shell(self, monkeypatch):
+        monkeypatch.setattr(valve.rcon, "shell", pytest.Mock())
+        return valve.rcon.shell
+
+    @pytest.fixture
+    def execute(self, monkeypatch):
+        monkeypatch.setattr(valve.rcon, "execute", pytest.Mock())
+        return valve.rcon.execute
+
+    def test_no_arguments(self, shell, execute):
+        valve.rcon._main([])
+        assert shell.called
+        assert not execute.called
+        assert shell.call_args[0] == (None, None)
+
+    def test_address_only(self, shell, execute):
+        valve.rcon._main(["localhost:9001"])
+        assert shell.called
+        assert not execute.called
+        assert shell.call_args[0] == (("localhost", 9001), None)
+
+    def test_address_and_password(self, shell, execute):
+        valve.rcon._main(["localhost:9001", "-p", "password"])
+        assert shell.called
+        assert not execute.called
+        assert shell.call_args[0] == (("localhost", 9001), "password")
+
+    def test_password_only(self, shell, execute):
+        with pytest.raises(docopt.DocoptExit):
+            valve.rcon._main(["-p", "password"])
+        assert not shell.called
+        assert not execute.called
+
+    def test_execute(self, capsys, shell, execute):
+        execute.return_value = "command output"
+        valve.rcon._main(["localhost:9001", "-p", "password", "-e", "foo"])
+        assert not shell.called
+        assert execute.called
+        assert execute.call_args[0] == (("localhost", 9001), "password", "foo")
+        assert capsys.readouterr()[0] == "command output\n"
+
+    def test_execute_no_address(self, shell, execute):
+        with pytest.raises(docopt.DocoptExit):
+            valve.rcon._main(["-p", "password", "-e", "foo"])
+        assert not shell.called
+        assert not execute.called
+
+    def test_execute_no_password(self, shell, execute):
+        with pytest.raises(docopt.DocoptExit):
+            valve.rcon._main(["localhost:9001", "-e", "foo"])
+        assert not shell.called
+        assert not execute.called
+
+    def test_execute_no_address_or_password(self, shell, execute):
+        with pytest.raises(docopt.DocoptExit):
+            valve.rcon._main(["-e", "foo"])
+        assert not shell.called
+        assert not execute.called

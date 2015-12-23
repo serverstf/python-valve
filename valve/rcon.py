@@ -20,11 +20,39 @@ import struct
 import sys
 import textwrap
 
+import docopt
 import monotonic
 import six
 
 
 log = logging.getLogger(__name__)
+# Docopt limitation prevents us from using ``python -m valve.rcon``
+# instead of the substituted ``{program}`` -- which is wrong.
+# See: https://github.com/docopt/docopt/issues/41
+_USAGE = """
+Usage:
+  {program}
+  {program} ADDRESS [-p PASSWORD]
+  {program} ADDRESS -p PASSWORD -e COMMAND
+
+Arguments:
+  ADDRESS       Address of the server to connect to. If the port number
+                is not given it will default to 27015.
+
+Options:
+  -h --help     Show this help.
+  -p PASSWORD --password=PASSWORD
+                Password to use when authenticating with the server.
+  -e COMMAND --execute=COMMAND
+                Command to execute on the server.
+
+By default this will create a shell for connecting and issuing commands
+to an RCON server. You can either specify the host and password as
+command-line arguments or use the !connect command once the shell as started.
+
+Alternately, if the --execute option is used then the given command will
+be executed and the response printed to stdout.
+"""
 
 
 class RCONError(Exception):
@@ -767,7 +795,7 @@ def _parse_address(address):
         This doesn't check that the host component of the address
         is either a valid dotted-decimal IPv4 address or DNS label.
 
-    :raises argparse.ArgumentTypeError: if the given port does not appear
+    :raises ValueError: if the given port does not appear
         to be a valid port number.
 
     :returns: a tuple containing the host as a string and the port as
@@ -782,55 +810,39 @@ def _parse_address(address):
     try:
         port = int(port_string)
     except ValueError:
-        raise argparse.ArgumentTypeError(
+        raise ValueError(
             "Could not parse address port "
             "{!r} as a number".format(port_string))
     if port <= 0 or port > 65535:
-        raise argparse.ArgumentTypeError(
-            "Port number must be in the range 1 to 65535")
+        raise ValueError("Port number must be in the range 1 to 65535")
     return host, port
 
 
-def _main_argument_parser():
-    """Get argument parser for command-line interface.
-
-    :returns: an :class:`argparse.ArgumentParser` instance.
-    """
-    parser = argparse.ArgumentParser(
-        description="Connect to an RCON server.",
-        epilog=("By default this will create a shell for connecting "
-                "to and issuing commands to an RCON server. Alternately, "
-                "if the --execute option is given then the given command "
-                "will be executed and the response printed to stdout. "),
-    )
-    parser.add_argument(
-        "-a",
-        "--address",
-        metavar="HOST[:PORT]",
-        type=_parse_address,
-        help=("Address of the server to connect to. If not "
-              "port number is not given it will default to 27015."),
-    )
-    parser.add_argument(
-        "-p",
-        "--password",
-        help="Password to use when authenticating with the server.",
-    )
-    parser.add_argument(
-        "-e",
-        "--execute",
-        help="Command to execute on the server.",
-    )
-    return parser
-
-
 def _main(argv=None):
-    arguments = _main_argument_parser().parse_args(argv)
-    if arguments.execute is None:
-        shell(arguments.address, arguments.password)
+    """RCON client entry-point.
+
+    If the ``--execute`` (or any alias thereof) option is given then this
+    will execute that single command and print its response to stdout.
+
+    Alternately, if ``--execute`` *is not* given then an RCON shell will be
+    spawed via :func:`shell`.
+
+    :param argv: command line options.
+
+    :raises ValueError: if an invalid ``--address`` is given.
+    """
+    logging.disable(logging.CRITICAL)
+    arguments = docopt.docopt(_USAGE.format(program=sys.argv[0]), argv)
+    if arguments["ADDRESS"] is None:
+        address = None
     else:
-        print(execute(arguments.address,
-                      arguments.password, arguments.execute))
+        address = _parse_address(arguments["ADDRESS"])
+    password = arguments["--password"]
+    command = arguments["--execute"]
+    if command is None:
+        shell(address, password)
+    else:
+        print(execute(address, password, command))
 
 
 if __name__ == "__main__":  # pragma: no cover
