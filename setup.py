@@ -8,7 +8,7 @@ from setuptools.command.test import test as TestCommand
 
 
 install_requires = [
-    "docopt>=0.6.2"
+    "docopt>=0.6.2",
     "monotonic",
     "requests>=2.0",
     "six>=1.6",
