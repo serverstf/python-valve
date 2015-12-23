@@ -664,16 +664,24 @@ class ConVar(_ConVar):
 
 
 class _RCONShell(cmd.Cmd):
+    """Interactive RCON shell.
+
+    This pretty much the passes command straight through to the server
+    along an :class:`RCON` connection. Special, shell-specific commands
+    are accesses via ``shell <command>`` or ``!<command>``.
+
+    Completions are provided for known ConVars.
+    """
 
     _INITIAL_PROMPT = "RCON ] "
-    _HELP_TEXT = textwrap.dedent("""\
+    _HELP_TEXT = textwrap.dedent("""
         <convar> [...]      Run a command on the server.
         help <convar>       Find help about a convar/concommand.
         !connect            Connect to an RCON server.
         !disconnect         Disconnect from the current server.
         !exit               Exit this shell.
         !shutdown           Shutdown the server.
-        """).rstrip("\n")
+        """).strip("\n")
 
     def __init__(self):
         super().__init__()
@@ -681,7 +689,22 @@ class _RCONShell(cmd.Cmd):
         self._rcon = None
         self._convars = ()
 
-    def connect(self, address, password):
+    def _connect(self, address, password):
+        """Connect to an RCON server.
+
+        If already connected then this will disconnect first. Establishing
+        a connection only succeeds if both the physical connection is made
+        and authentication is successful.
+
+        Once the connection is established a ``cvarlist`` command is sent
+        to enumerate all available ConVars for use in completions.
+
+        In addition to this, the prompt is updated to reference the address
+        of the currently connected server.
+
+        :param address: same as :class:`RCON`.
+        :param password: same as :class:`RCON`.
+        """
         self.disconnect()
         self._rcon = RCON(address, password)
         try:
@@ -694,7 +717,14 @@ class _RCONShell(cmd.Cmd):
             self.prompt = "{0}:{1} ] ".format(*address)
             self._convars = tuple(self._rcon.cvarlist())
 
-    def disconnect(self):
+    def _disconnect(self):
+        """Disconnect from the RCON server.
+
+        This closes the RCON connection, forgets the known ConVars and
+        reverts the prompt to its initial state.
+
+        Safe to call if not already connected.
+        """
         if self._rcon:
             self._rcon.close()
             self._rcon = None
@@ -702,6 +732,16 @@ class _RCONShell(cmd.Cmd):
         self.prompt = self._INITIAL_PROMPT
 
     def default(self, command):
+        """Issue a command as an RCON command.
+
+        If currently connected, this will issue the given command on the
+        server and print the response to stdout. If connection to the server
+        should be lost whilst this is happening then a warning is printed
+        instead and the shell formally disconnected.
+
+        If not connected then a message is printed notifying the user to
+        connect first.
+        """
         if self._rcon:
             try:
                 response = self._rcon.execute(command).text
@@ -719,16 +759,30 @@ class _RCONShell(cmd.Cmd):
         """Do nothing."""
 
     def completenames(self, text, line, start_index, end_index):
+        """Include ConVars in completeable names."""
         commands = super(_RCONShell, self).completenames(
             text, line, start_index, end_index)
         return commands + [convar.name for convar in
                            self._convars if convar.name.startswith(text)]
 
     def do_exit(self, _):
+        """Do nothing.
+
+        Specifically, notify the user that an ``exit`` command might not do
+        what they expect it to.
+        """
         print("Use !exit to exit this shell or "
               "!shutdown to shutdown the server.")
 
     def do_help(self, command):
+        """Print out ConVar-specific or generic help.
+
+        If a ``command`` is given then this issues a ``help <command>``
+        command to the server and prints its response. Other it prints out
+        the generic help.
+
+        :param str command: the ConVar to show help for.
+        """
         if command in (c.name for c in self._convars):
             self.default("help " + command)
         else:
@@ -751,9 +805,9 @@ class _RCONShell(cmd.Cmd):
             else:
                 if arguments.password is None:
                     arguments.password = getpass.getpass("Password: ")
-                self.connect(arguments.address, arguments.password)
+                self._connect(arguments.address, arguments.password)
         elif command == "disconnect":
-            self.disconnect()
+            self._disconnect()
         elif command == "shutdown":
             self.default("exit")
 
