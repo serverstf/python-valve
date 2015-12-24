@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013-2015 Oliver Ainsworth
 
 import sys
 import textwrap
@@ -8,24 +7,14 @@ from setuptools import setup, find_packages
 from setuptools.command.test import test as TestCommand
 
 
-class PyTest(TestCommand):
-    # http://pytest.org/latest/goodpractises.html#integration-with-setuptools-test-commands
-
-    user_options = [('pytest-args=', 'a', "Arguments to pass to py.test")]
-
-    def initialize_options(self):
-        TestCommand.initialize_options(self)
-        self.pytest_args = []
-
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
-        self.test_args = []
-        self.test_suite = True
-
-    def run_tests(self):
-        # Import here, cause outside the eggs aren't loaded
-        import pytest
-        sys.exit(pytest.main(self.pytest_args))
+install_requires = [
+    "docopt>=0.6.2",
+    "monotonic",
+    "requests>=2.0",
+    "six>=1.6",
+]
+if sys.version_info[0] == 2:
+    install_requires.append("enum34>=1.1")
 
 
 setup(
@@ -36,23 +25,19 @@ setup(
     author="Oliver Ainsworth",
     author_email="ottajay@googlemail.com",
     packages=find_packages(),
-    install_requires=[
-        "six>=1.6",
-        "requests>=2.0",
-    ],
-    tests_require=[
-        "pytest",
-        "mock==1.0.1",
-    ],
+    install_requires=install_requires,
     extras_require={
         "development": [
             "pylint",
         ],
+        "test": [
+            "mock==1.0.1",
+            "pytest>=2.8.0",
+            "pytest-capturelog",
+            "pytest-timeout",
+        ],
     },
     license="MIT License",
-    cmdclass={
-        "test": PyTest,
-    },
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Development Status :: 4 - Beta",

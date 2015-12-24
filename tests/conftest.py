@@ -1,14 +1,19 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2014 Oliver Ainsworth
 
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
+import threading
+
+try:
+    import mock
+except ImportError:
+    import unittest.mock as mock
 import pytest
 
-
-import valve.source.master_server
 import valve.source.a2s
+import valve.source.master_server
+import valve.testing
 
 
 def srcds_functional(**filter_):
@@ -91,4 +96,18 @@ def pytest_generate_tests(metafunc):
 
 
 def pytest_namespace():
-    return {"srcds_functional": srcds_functional}
+    return {
+        "Mock": mock.Mock,
+        "MagicMock": mock.MagicMock,
+        "srcds_functional": srcds_functional,
+    }
+
+
+@pytest.yield_fixture
+def rcon_server():
+    server = valve.testing.TestRCONServer()
+    thread = threading.Thread(target=server.serve_forever)
+    thread.start()
+    yield server
+    server.shutdown()
+    thread.join()
