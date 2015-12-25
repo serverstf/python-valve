@@ -789,27 +789,65 @@ class _RCONShell(cmd.Cmd):
             print(self._HELP_TEXT)
 
     def do_shell(self, command_string):
+        """Handle shell commands.
+
+        The given command string is parsed into two components: the command
+        and its arguments. Shell argument syntax is used to parse the command
+        string.
+
+        Commands are dispatched to ``do_shell_``-prefixed methods, passing
+        the arguments as the sole parameter.
+
+        If the given command doesn't exist then a notification is printed
+        to stdout.
+
+        :param str command_string: the command to parse and dispatch.
+
+        :returns: the return value of the method the command was dispatched
+            to or ``None`` if the command wasn't actually dispatched.
+        """
         split = shlex.split(command_string)
         command, argv = split[0], split[1:]
-        if command == "exit":
-            return True
-        elif command == "connect":
-            parser = argparse.ArgumentParser(prog="!connect", add_help=False)
-            parser.add_argument(
-                "address", metavar="HOST[:PORT]", type=_parse_address)
-            parser.add_argument("password", metavar="PASSWORD", nargs="?")
-            try:
-                arguments = parser.parse_args(argv)
-            except SystemExit:
-                pass
-            else:
-                if arguments.password is None:
-                    arguments.password = getpass.getpass("Password: ")
-                self._connect(arguments.address, arguments.password)
-        elif command == "disconnect":
-            self._disconnect()
-        elif command == "shutdown":
-            self.default("exit")
+        command_handler = getattr(self, "do_shell_" + command, None)
+        if command_handler:
+            return command_handler(argv)
+        else:
+            print("Unknown command !{}".format(command))
+
+    def do_shell_exit(self, argv):
+        """Exit the shell."""
+        return True
+
+    def do_shell_connect(self, argv):
+        """Connect to a server.
+
+        This shell command accepts two arguments: the address string of the
+        server an optional password. If the given arguments are invalid
+        (e.g. a bad address string) then a notification is printed to stdout.
+
+        If given a valid address string but no password then the user is
+        prompted for it.
+        """
+        parser = argparse.ArgumentParser(prog="!connect", add_help=False)
+        parser.add_argument(
+            "address", metavar="HOST[:PORT]", type=_parse_address)
+        parser.add_argument("password", metavar="PASSWORD", nargs="?")
+        try:
+            arguments = parser.parse_args(argv)
+        except SystemExit:
+            pass
+        else:
+            if arguments.password is None:
+                arguments.password = getpass.getpass("Password: ")
+            self._connect(arguments.address, arguments.password)
+
+    def do_shell_disconnect(self, argv):
+        """Disconnect the current connection."""
+        self._disconnect()
+
+    def do_shell_shutdown(self, argv):
+        """Shutdown the connected server."""
+        self.default("exit")
 
 def shell(address=None, password=None):
     """A simple interactive RCON shell.
