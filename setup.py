@@ -3,8 +3,7 @@
 import sys
 import textwrap
 
-from setuptools import setup, find_packages
-from setuptools.command.test import test as TestCommand
+import setuptools
 
 
 install_requires = [
@@ -17,14 +16,14 @@ if sys.version_info[0] == 2:
     install_requires.append("enum34>=1.1")
 
 
-setup(
+setuptools.setup(
     name="python-valve",
-    version="0.1.1",
+    version="1.0.0",
     description=("Small library implementing "
                  "various parts of Steam's public interfaces"),
     author="Oliver Ainsworth",
     author_email="ottajay@googlemail.com",
-    packages=find_packages(),
+    packages=setuptools.find_packages(),
     install_requires=install_requires,
     extras_require={
         "development": [
@@ -40,8 +39,11 @@ setup(
     license="MIT License",
     classifiers=[
         "License :: OSI Approved :: MIT License",
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: Implementation :: CPython",
+        "Programming Language :: Python :: Implementation :: PyPy",
     ],
 )
