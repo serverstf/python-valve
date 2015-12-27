@@ -467,7 +467,7 @@ class RCON(object):
             if not wrapper.__doc__.endswith("\n"):
                 wrapper.__doc__ += "\n"
             wrapper.__doc__ += ("\n:raises RCONError: {} {}.".format(
-                "if" if value else "if not", state))
+                "if not" if value else "if", state))
             # pylint: enable=no-member
             return wrapper
 
@@ -616,6 +616,8 @@ def execute(address, password, command):
     :param str password: the password to use to authenticate the connection.
     :param str command: the command to execute on the server.
 
+    :raises UnicodeDecodeError: if the response could not be decoded into
+        Unicode.
     :raises RCONCommunicationError: if a connection to the RCON server
         could not be made.
     :raise RCONAuthenticationError: if authentication failed, either

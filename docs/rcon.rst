@@ -1,85 +1,135 @@
 .. module:: valve.rcon
 
-
 Source Remote Console (RCON)
 ****************************
 
-The remote console (RCON) is available in all Source Dedicated Servers and
-it provides a way for server operators to access and administer their servers
-remotely. The :mod:`valve.rcon` module provides an implementation of
-the RCON protocol.
+Source remote console (or RCON) provides a way for server operators to
+administer and interact with their servers remotely in the same manner as
+the console provided by :program:`srcds`. The :mod:`valve.rcon` module
+provides an implementation of the RCON protocol.
 
-RCON is a TCP based request-response protocol with a simple authentication
-mechanism. The client initiates a connection with the server and attempts to
-authenticate by submitting a password. If authentication suceeds then the
-client is free to send further requests to the server in the same manner
-as you may do using the Source in-game console.
+RCON is a simple, TCP-based request-response protocol with support for
+basic authentication. The RCON client initiates a connection to a server
+and  attempts to authenticate by submitting a password. If authentication
+succeeds then the client is free to send further requests. These subsequent
+requests are interpreted the same way as if you were to type them into
+the :program:`srcds` console.
 
 .. warning::
-
-    RCON does not use secure transport so the password is sent as plain text.
+    Passwords and console commands are sent in plain text. Tunneling the
+    connection through a secure channel may be advisable.
 
 .. note::
-
-    Many RCON authentication failures in a row from a single host will result
-    in the Source server automatically banning that IP, preventing any
-    subsequent connection attempts.
-
-
-Example
-=======
-
-.. code:: python
-
-    from valve.rcon import RCON
-
-    SERVER_ADDRESS = ("...", 27015)
-    PASSWORD = "top_secret"
-
-    with RCON(SERVER_ADDRESS, PASSWORD) as rcon:
-        print(rcon("echo Hello, world!"))
-
-In this example a :class:`RCON` instance is created to connect to a Source
-RCON server, authenticating using the given password. Then the ``echo`` RCON
-command is issued which simply prints out what it receives.
-
-Using the :class:`RCON` object with the ``with`` statement means creation and
-clean up of the underlying TCP socket will happen automatically. Also, if the
-password is specified, the client will authenticate immediately after
-connecting.
+    Multiple RCON authentication failures in a row from a single host will
+    result in the Source server automatically bannding that IP, preventing
+    any subsequent connection attempts.
 
 
-The :class:`RCON` Class
-=======================
+High-level API
+==============
 
-The :class:`RCON` class implements the RCON client protocol. It supports the
-ability to finely grain transport creation, connection, authentication and
-clean up although its encouraged to make use of the ``with`` statement as
-shown in the example above.
+The :mod:`valve.rcon` module provides a number of ways to interact with
+RCON servers. The simplest is the :func:`execute` function which executes
+a single command on the server and returns the response as a string.
 
-.. autoclass:: RCON
-    :members:
-    :special-members:
+In many cases this may be sufficient but it's important to consider that
+:func:`execute` will create a new, temporary connection for every command.
+If order to reuse a connection the :class:`RCON` class should be used
+directly.
+
+Also note that :func:`execute` only returns Unicode strings which may
+prove problematic in some cases. See :ref:`rcon-unicode`.
+
+.. autofunction:: execute
 
 
-RCON Messages
-=============
+Core API
+========
 
-RCON *requests* and *responses* are generalised as *messages* in the
-python-valve implementation. If you're using :meth:`RCON.__call__` then you
-won't need to worry about handling individual messages. However,
-:meth:`RCON.execute` returns these raw messages so their structure is
-documented below.
+The core API for the RCON implementation is split encapsulated by two
+distinct classes: :class:`RCONMessage` and :class:`RCON`.
+
+
+Representing RCON Messages
+--------------------------
+
+Each RCON message, whether a request or a response, is represented by an
+instance of the :class:`RCONMessage` class. Each message has three fields:
+the message ID, type and contents or body. The message ID of a request is
+reflected back to the client when the server returns a response but is
+otherwise unsued by this implementation. The type is one of four constants
+(represented by three distinct values) which signifies the semantics of the
+message's ID and body. The body it self is an opaque string; its value
+depends on the type of message.
 
 .. autoclass:: RCONMessage
     :members:
-    :special-members:
+    :exclude-members: Type
 
 
-REPL via :func:`shell`
-======================
+.. _rcon-unicode:
 
-A small convenience function is provided by the :mod:`valve.rcon`
-module for creating command-line REPL interfaces for RCON connections.
+Unicode and String Encoding
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autofunction:: shell
+The type of the body field of RCON messages is documented as being a
+double null-terminated, ASCII-encoded string. At the Python level though
+both Unicode strings and raw byte string interfaces are provided by
+:attr:`RCONMessage.text` and :attr:`RCONMessage.body` respectively.
+
+In Python you are encouraged to deal with text (a.k.a. Unicode strings)
+in preference to raw byte strings unless strictly neccessary. However,
+it has been reported that under some conditions RCON servers may return
+invalid ASCII sequences in the response body. Therefore it is possible
+that the textual representation of the body cannot be determined and
+attempts to access :attr:`RCONMessage.text` will fail with a
+:exc:`UnicodeDecodeError` being raised.
+
+It appears -- but is not conclusively determined -- that RCON servers in
+fact return UTF-8-encoded message bodies, hence why ASCII seems to to work
+in most cases. Until this can be categorically proven as the behaviour that
+should be expected Python-valve will continue to attempt to process ASCII
+strings.
+
+If you come across :exc:`UnicodeDecodeError` whilst accessing response
+bodies you will instead have to make-do and handle the raw byte strings
+manually. For example:
+
+.. code:: python
+
+    response = rcon.execute("command")
+    response_text = response.body.decode("utf-8")
+
+If this is undesirable it is also possible to globally set the encoding
+used by :class:`RCONMessage` but this *not* particularly encouraged:
+
+.. code:: python
+
+    import valve.rcon
+
+    valve.rcon.RCONMessage.ENCODING = "utf-8"
+
+
+Creating RCON Connections
+-----------------------------
+
+.. autoclass:: RCON
+    :members:
+    :special-members: __call__, __enter__, __exit__
+
+Example
+^^^^^^^
+
+.. code:: python
+
+    import valve.rcon
+
+    address = ("rcon.example.com", 27015)
+    password = "top-secrect-password"
+    with valve.rcon.RCON(address, password) as rcon:
+        response = rcon.execute("echo Hello, world!")
+        print(response.text)
+
+
+Command-line Client
+===================
