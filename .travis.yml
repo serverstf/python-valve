@@ -9,4 +9,4 @@ install:
   - pip install sphinx
 script:
   - py.test -ra -v tests/
-  - sphinx-build -b html docs/ _build/html
+  - sphinx-build -vwTb html docs/ _build/html
