@@ -17,11 +17,11 @@ the :program:`srcds` console.
 
 .. warning::
     Passwords and console commands are sent in plain text. Tunneling the
-    connection through a secure channel may be advisable.
+    connection through a secure channel may be advisable where possible.
 
 .. note::
     Multiple RCON authentication failures in a row from a single host will
-    result in the Source server automatically bannding that IP, preventing
+    result in the Source server automatically banning that IP, preventing
     any subsequent connection attempts.
 
 
@@ -117,6 +117,7 @@ Creating RCON Connections
     :members:
     :special-members: __call__, __enter__, __exit__
 
+
 Example
 ^^^^^^^
 
@@ -133,3 +134,88 @@ Example
 
 Command-line Client
 ===================
+
+As well as providing means to programatically interact with RCON servers,
+the :mod:`valve.rcon` module also provides an interactive, command-line
+client. A client shell can be started by calling :func:`shell` or running
+the :mod:`valve.rcon` module.
+
+.. autofunction:: shell
+
+
+Using the RCON Shell
+--------------------
+
+When :func:`shell` is executed, an interactive RCON shell is created. This
+shell reads commands from stdin, passes them to a connected RCON server
+then prints the response to stdout in a conventional read-eval-print pattern.
+
+By default, commands are treated as plain RCON commmands and are passed
+directly to the connected server for evaluation. However, commands prefixed
+with an exclamation mark are interpreted by the shell it self:
+
+``!connect``
+    Connect to an RCON server. This command accepts two space-separated
+    arguments: the address of the server and the corresponding password;
+    the latter is optional. If the password is not given the user is
+    prompted for it.
+
+    If the shell is already connected to a server then it will disconnect
+    first before connecting to the new one.
+
+``!disconnect``
+    Disconnect from the current RCON server.
+
+``!shutdown``
+    Shutdown the RCON server. This actually just sends an ``exit`` command
+    to the server. This must be used instead of ``exit`` as its behaviour
+    could prove confusing with ``!exit`` otherwise.
+
+``!exit``
+    Exit the shell. This *does not* shutdown the RCON server.
+
+Help is available via the ``help`` command. When connected, an optional
+argument can be provided which is the RCON command to show help for.
+
+When connected to a server, command completions are provided via the tab key.
+
+
+Command-line Invocation
+-----------------------
+
+The :mod:`valve.rcon` module is runnable. When ran with no arguments its the
+same as calling :func:`shell` with defaults. As with :func:`shell`, the
+address and password can be provided as a part of the invoking command:
+
+.. code:: bash
+
+    $ python -m valve.rcon
+    $ python -m valve.rcon rcon.example.com:27015
+    $ python -m valve.rcon rcon.example.com:27015 --password TOP-SECRET
+
+.. warning::
+    Passing sensitive information via command-line arguments, such as
+    your RCON password, can be *dangerous*. For example, it can show
+    up in :program:`ps` output.
+
+
+Executing a Single Command
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When ran, the module has two modes of execution: the default, which will
+spawn an interactive RCON shell and the single command execution mode.
+When passed the ``--execute`` argument, :program:`python -m valve.rcon`
+will run the given command and exit with a status code of zero upon
+completion. The command response is printed to stdout.
+
+This can be useful for simple scripting of RCON commands outside of a
+Python environment, such as in a shell script.
+
+.. code:: bash
+
+    $ python -m valve.rcon rcon.example.com:27015 \
+        --password TOP-SECRET --execute "echo Hello, world!"
+
+
+Usage
+^^^^^
