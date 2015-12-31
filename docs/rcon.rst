@@ -219,3 +219,6 @@ Python environment, such as in a shell script.
 
 Usage
 ^^^^^
+
+.. literalinclude:: ../valve/rcon.py
+    :pyobject: _USAGE
