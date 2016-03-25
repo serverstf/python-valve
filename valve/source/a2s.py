@@ -36,6 +36,9 @@ class BaseServerQuerier(object):
             raise NoResponseError(exc)
         return data
 
+    def __del__(self):
+        self.socket.close()
+
 
 class ServerQuerier(BaseServerQuerier):
     """Implements the A2S Source server query protocol
