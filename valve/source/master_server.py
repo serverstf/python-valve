@@ -73,6 +73,7 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
         """
         last_addr = "0.0.0.0:0"
         first_request = True
+        previous_addr = set()
         while first_request or last_addr != "0.0.0.0:0":
             first_request = False
             self.request(messages.MasterServerRequest(region=region,
@@ -85,10 +86,15 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
             else:
                 response = messages.MasterServerResponse.decode(raw_response)
                 for address in response["addresses"]:
-                    last_addr = "{}:{}".format(
-                        address["host"], address["port"])
+                    addr_tuple = (address["host"], address["port"])
+                    if addr_tuple in previous_addr:
+                        # Skip already yielded address
+                        continue
+                    else:
+                        previous_addr.add(addr_tuple)
+                    last_addr = "{}:{}".format(*addr_tuple)
                     if not address.is_null:
-                        yield address["host"], address["port"]
+                        yield addr_tuple
 
     def _map_region(self, region):
         """Convert string to numeric region identifier
