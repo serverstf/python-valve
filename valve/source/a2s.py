@@ -124,19 +124,21 @@ class ServerQuerier(BaseServerQuerier):
         |                    | ``232250`` which is the ID of the server       |
         |                    | software.                                      |
         +--------------------+------------------------------------------------+
-        | player_count       | Number of players currently connected          |
+        | player_count       | Number of players currently connected.         |
+        |                    | See :meth:`.players` for caveats about the     |
+        |                    | accuracy of this field.                        |
         +--------------------+------------------------------------------------+
         | max_players        | The number of player slots available. Note that|
         |                    | ``player_count`` may exceed this value under   |
-        |                    | certain circumstances.                         |
+        |                    | certain circumstances. See :meth:`.players`.   |
         +--------------------+------------------------------------------------+
         | bot_count          | The number of AI players present               |
         +--------------------+------------------------------------------------+
-        | server_type        | A :class:`..util.ServerType` instance          |
+        | server_type        | A :class:`.util.ServerType` instance           |
         |                    | representing the type of server. E.g.          |
         |                    | Dedicated, non-dedicated or Source TV relay.   |
         +--------------------+------------------------------------------------+
-        | platform           | A :class`..util.Platform` instances            |
+        | platform           | A :class:`.util.Platform` instances            |
         |                    | represneting the platform the server is running|
         |                    | on. E.g. Windows, Linux or Mac OS X.           |
         +--------------------+------------------------------------------------+
@@ -188,6 +190,23 @@ class ServerQuerier(BaseServerQuerier):
         | duration           | Number of seconds the player has been          |
         |                    | connected as a float                           |
         +--------------------+------------------------------------------------+
+
+        .. note::
+            Under certain circumstances, some servers may return a player
+            list which contains empty ``name`` fields. This can lead to
+            ``player_count`` being misleading.
+
+            Filtering out players with empty names may yield a more
+            accurate enumeration of players:
+
+            .. code-block:: python
+
+                query = ServerQuerier((..., ...))
+                players = []
+                for player in query.players()["players"]:
+                    if player["name"]:
+                        players.append(player)
+                player_count = len(players)
         """
 
         # TF2 and L4D2's A2S_SERVERQUERY_GETCHALLENGE doesn't work so
