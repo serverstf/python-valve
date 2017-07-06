@@ -1,7 +1,7 @@
 Welcome to python-valve's documentation!
 ========================================
 python-valve is a Python library which aims to provide the ability to
-interace with various Valve services and products, including: the Steam
+interface with various Valve services and products, including: the Steam
 web API, locally installed Steam clients, Source servers and the Source
 master server.
 
@@ -19,19 +19,19 @@ Contents:
 
 
 Although Python libraries *do* already exist for many aspects which
-python-valve aims to cover, many of them are aging and no long maintained.
+python-valve aims to cover, many of them are ageing and no long maintained.
 python-valve hopes to change that and provide an all-in-one library for
 interfacing with Valve products and services that is well tested, well
 documented and actively maintained.
 
-python-valve's functional test suite for its A2S implentation is actively ran
-against thousands of servers to ensure that if any subtle changes are made
+python-valve's functional test suite for its A2S implementation is actively
+ran against thousands of servers to ensure that if any subtle changes are made
 by Valve that break things they can be quickly picked up and fixed.
 
 
 License
 =======
-Copyright (c) 2013-2014 Oliver Ainsworth
+Copyright (c) 2013-2017 Oliver Ainsworth
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -72,4 +72,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

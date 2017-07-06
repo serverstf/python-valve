@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2013-2014 Oliver Ainsworth
+# Copyright (C) 2013-2017 Oliver Ainsworth
 
 """Provides utilities for representing SteamIDs
 
