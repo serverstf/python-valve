@@ -13,6 +13,14 @@ interface to various Valve products and services, including:
 - Valve Data Format (.vdf) (de)serialiser
 
 
+
+Maintenance
+-----------
+
+This project was originally created by @Holiverh, but was abandoned in Late 2015. This (unofficial) fork will continue to build it and will merge and fix any issues.
+
+
+
 RCON Example
 ------------
 
