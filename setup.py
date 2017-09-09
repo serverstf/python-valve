@@ -35,6 +35,10 @@ setuptools.setup(
             "pytest-capturelog",
             "pytest-timeout",
         ],
+        "docs": [
+            "sphinx",
+            "sphinx_rtd_theme",
+        ],
     },
     license="MIT License",
     classifiers=[
