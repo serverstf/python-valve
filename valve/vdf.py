@@ -1,208 +1,287 @@
 # -*- coding: utf-8 -*-
+# Copyright (C) 2013 Oliver Ainsworth
 
-"""Tools for handling the Valve Data Format (VDF).
+"""
+    Implements a parser for the Valve Data Format (VDF,) or as often
+    refered KeyValues.
 
-This module provides functionality to serialise and deserialise VDF
-formatted data using an API similar to that of the built-in :mod:`json`
-library.
+    Currently only provides parsing functionality without the ability
+    to serialise. API designed to mirror that of the built-in JSON
+    module.
 
-https://developer.valvesoftware.com/wiki/KeyValues
+    https://developer.valvesoftware.com/wiki/KeyValues
 """
 
-from __future__ import (absolute_import,
-                        unicode_literals, print_function, division)
+import string
+import re
 
-import abc
+_KV_KEY = 0
+_KV_BLOCK = 1
+_KV_BLOCKEND = 2
+_KV_PAIR = 3
 
-import six
-
-
-class VDFError(Exception):
-    """Base exception for all VDF errors."""
-
-
-class VDFSyntaxError(SyntaxError, VDFError):
-    """Exception for VDF syntax errors."""
-
-    def __init__(self, line, column, message):
-        self.line = line
-        self.column = column
-        self.message = message
-
-    def __str__(self):
-        return "line {0.line}, column {0.column}: {0.message}".format(self)
+ALWAYS = 0
+UNQUOTED = 1
+NEVER = 2
 
 
-class IncludeResolutionError(VDFError):
-    """Raised when resolving an include fails."""
+def coerce_type(token):
+    """
+        Attempts to convert a token to a native Python object by
+        matching it against various regexes.
 
+        Will silently fall back to string if no conversion can be made.
 
-@six.add_metaclass(abc.ABCMeta)
-class IncludeResolver(object):
-    """Base class for resolving includes.
-
-    VDF supports includes via ``#include`` and ``#base``. Whenever the
-    parser reaches one of these includes it needs to resolve the name
-    to VDF fragments which are then parsed.
-
-    You cannot instantiate this class directly. Use one of the concrete
-    implementations: :class:`IgnoreIncludeResolver`,
-    :class:`DisabledIncludeResolver` or :class:`FileSystemIncludeResolver`.
+        Currently only capable of converting integers and floating point
+        numbers.
     """
 
-    @abc.abstractmethod
-    def resolve(self, name):
-        """Resolve a VDF include to VDF fragments.
+    regexes = [
+        # regex, converter
+        (r"^-?[0-9]+$", int),
+        (r"^[-+]?[0-9]*\.?[0-9]+$", float),
+        # TODO: ("rgb", pass),
+        # TODO: ("hex triplet", pass),
+        ]
+    for regex, converter in regexes:
+        print(regex, converter, token, re.match(regex, token, re.UNICODE))
+        if re.match(regex, token, re.UNICODE):
+            return converter(token)
+    # Fallback to string
+    return token
 
-        :param str name: the name of the VDF document to include.
 
-        :raises IncludeResolutionError: if the name cannot be resolved.
+# Largely based on necavi's https://github.com/necavi/py-keyvalues
+def loads(src, encoding=None, coerce_=UNQUOTED):
+    """
+        Loades a VDF string into a series of nested dictionaries.
 
-        :returns: an interator of VDF fragments as strings.
-        """
+            encoding -- The encoding of the given source string if not
+                        Unicode. If this is not set and a bytestring is
+                        given, ASCII will be the assumed encoding.
 
+            corece_ -- can be set to determine whether an attempt should
+                        be made to convert values to native Python type
+                        equivalents.
 
-class IgnoreIncludeResolver(IncludeResolver):
-    """Include resolver that doesn't actually resolve to anything.
+                        If set to UNQUOTED (default,) only values that
+                        are not enclosed in double quotes will be
+                        converted.
 
-    Specifically, all names resolve to an empty fragment.
+                        If set to ALWAYS, will attempt to convert
+                        regardless of whether the value is quoted or not.
+                        not recommended.
+
+                        If set to NEVER, no attempt will be made to
+                        convert. Should produce most reliable behaviour.
     """
 
-    def resolve(self, name):
-        yield ""
+    if isinstance(src, str) and encoding is None:
+        encoding = "ascii"
+    if encoding is not None:
+        src = src.decode(encoding)
+    # else:
+    #   assume unicode
+    # pair type, pair key, pair value, coerce
+    pairs = [[_KV_BLOCK, "", None, False]]
+    # _KV_KEY -- all tokens begin as this
+    # _KV_BLOCK -- is for when a _KV_KEY is followed by a {
+    # _KV_PAIR -- is for when a _KV_KEY is followed by another token
+    extended_alphanumeric = set(
+        string.ascii_letters.decode("ascii") +
+        unicode(string.digits) +
+        u".-_")
+    i = 0
+    line = 1
+    col = 0
+    token = None
+    try:
+        while i < len(src):
+            char = src[i]
+            # Whitespace
+            if char in {u" ", u"\t"}:
+                pass
+            # End-of-line
+            elif char == u"\n":
+                try:
+                    if src[i+1] == u"\r":  # Will IndexError at EOF
+                        i += 1
+                        col += 1
+                    line += 1
+                    col = 0
+                except IndexError:
+                    pass
+            # End-of-line
+            elif char == u"\r":
+                try:
+                    if src[i+1] == u"\n":  # Will IndexError at EOF
+                        i += 1
+                        col += 1
+                    line += 1
+                    col = 0
+                except IndexError:
+                    pass
+            # Double-quotes enclosed token
+            elif char == u"\"":
 
-
-class DisabledIncludeResolver(IncludeResolver):
-    """Disables include resolution.
-
-    Instead this always raises :exc:`IncludeResolutionError` when attempting
-    to resolve an include.
-    """
-
-    def resolve(self, name):
-        raise IncludeResolutionError("Includes are disabled")
-
-
-class FileSystemIncludeResolver(IncludeResolver):
-    """Resolve includes relative to a file-system path.
-
-    :param pathlib.Path path: the base path to resolve includes relative to.
-    :param int chunk_size: the number of bytes to read from the file for
-        each fragment.
-    """
-
-    def __init__(self, path, chunk_size=4096):
-        self._path = path
-        self._chunk_size = chunk_size
-
-    def resolve(self, name):
-        include_path = self._path / name
-        try:
-            with include_path.open() as include_file:
-                for fragment in iter(
-                        lambda: include_file.read(self._chunk_size), ""):
-                    yield fragment
-        except OSError as exc:
-            raise IncludeResolutionError(str(exc))
-
-
-class VDFDecoder(object):
-    """Streaming VDF decoder."""
-
-    _CURLY_LEFT_BRACKET = "{"
-    _CURLY_RIGHT_BRACKET = "}"
-    _LINE_FEED = "\n"
-    _QUOTATION_MARK = "\""
-    _REVERSE_SOLIDUS = "\\"
-    _WHITESPACE = [" ", "\t"]
-    _ESCAPE_SEQUENCES = {
-        "n": "\n",
-        "t": "\t",
-        "\\": "\\",
-        "\"": "\"",
-    }
-
-    def __init__(self, includes):
-        self._line = 1
-        self._column = 0
-        self._includes = includes
-        self._parser = self._parse_whitespace()
-        next(self._parser)
-        self.object = {}
-        self._active_object = self.object
-        self._key = ""
-        self._value = None
-
-    def _parse_whitespace(self):
-        while True:
-            character = yield
-            if character not in self._WHITESPACE:
-                return
-
-    def _parse_key(self):
-        key = ""
-        first_character = yield
-        if first_character == self._QUOTATION_MARK:
-            quoted = True
-        else:
-            quoted = False
-        escape = False
-        while True:
-            character = yield
-            if not escape and character == self._QUOTATION_MARK:
-                yield  # Consume trailing quotation mark
-                break
-            if character == self._REVERSE_SOLIDUS:
-                escape = True
-                continue
-            if escape:
-                if character in self._ESCAPE_SEQUENCES:
-                    character = self._ESCAPE_SEQUENCES[character]
-                    escape = False
+                token = u""
+                while True:
+                    i += 1
+                    col += 1
+                    char = src[i]
+                    # I don't agree with the assertion in py-keyvalues
+                    # that \n or \r should also terminate a token if
+                    # its quoted.
+                    if char == u"\"":
+                        break
+                    elif char in {"\r", "\n"}:
+                        raise SyntaxError("End-of-line quoted token")
+                    elif char == u"\\":
+                        i += 1
+                        try:
+                            escaped_char = src[i]
+                        except IndexError:
+                            raise SyntaxError("EOF in escaped character")
+                        try:
+                            char = {
+                                u"n": u"\n",
+                                u"r": u"\r",
+                                u"t": u"\t",
+                                u"\"": u"\"",
+                                u"\\": u"\\",
+                            }[escaped_char]
+                        except KeyError:
+                            raise SyntaxError("Invalid escape character")
+                    token += char
+                if pairs[-1][0] == _KV_KEY:
+                    pairs[-1][0] = _KV_PAIR
+                    pairs[-1][2] = token
+                    pairs[-1][3] = coerce_ in [ALWAYS]
                 else:
-                    raise SyntaxError(
-                        "Invalid escape sequence '\\{}'".format(character))
-            key += character
-        self._key = key
+                    pairs.append([_KV_KEY, token, None, False])
+            # Unquoted token
+            elif char in extended_alphanumeric:
+                token = u""
+                while True:
+                    token += char
+                    i += 1
+                    col += 1
+                    char = src[i]
+                    if char not in extended_alphanumeric:
+                        # Assume end of token; in most cases this will
+                        # white space or a new line
 
-    def _next_parser(self, previous):
-        if self._key:
-            return self._parse_whitespace()
-        else:
-            return self._parse_key()
+                        # If newline, rewind 1 char so it can be
+                        # properly handled by the end-of-line processors
+                        if char in {u"\n", u"\r"}:
+                            i -= 1
+                            col -= 1
+                            char = src[i]
+                        break
+                if pairs[-1][0] == _KV_KEY:
+                    pairs[-1][0] = _KV_PAIR
+                    pairs[-1][2] = token
+                    pairs[-1][3] = coerce_ in [ALWAYS, UNQUOTED]
+                else:
+                    pairs.append([_KV_KEY, token, None, False])
+                # I don't know if there are any cases where an unquoted
+                # key may be illegal, e.g. if it contains only digits.
+                # I assume it is, but I won't handle it for now.
+            # Block start
+            elif char == u"{":
+                if pairs[-1][0] != _KV_KEY:
+                    raise SyntaxError("Block doesn't follow block name")
+                pairs[-1][0] = _KV_BLOCK
+            elif char == u"}":
+                pairs.append([_KV_BLOCKEND, None, None, False])
+            else:
+                raise SyntaxError("Unexpected character")
+            i += 1
+            col += 1
+    except SyntaxError as exc:
+        raise ValueError("{} '{}'; line {} column {}".format(
+            exc.message, src[i], line, col))
+    dict_ = {}
+    dict_stack = [dict_]
+    CURRENT = -1
+    PREVIOUS = -2
+    for type, key, value, should_coerce in pairs[1:]:
+        if type == _KV_BLOCK:
+            dict_stack.append({})
+            dict_stack[PREVIOUS][key] = dict_stack[CURRENT]
+        elif type == _KV_BLOCKEND:
+            dict_stack = dict_stack[:CURRENT]
+        elif type == _KV_PAIR:
+            dict_stack[CURRENT][key] = (coerce_type(value) if
+                                        should_coerce else value)
+        # else:
+        #   should never occur, but would be caused by a token not being
+        #   followed by a block or value
+    return dict_
 
-    def feed(self, fragment):
-        while fragment:
-            character, fragment = fragment[0], fragment[1:]
-            self._column += 1
-            if character == self._LINE_FEED:
-                self._line += 1
-                self._column = 1
-            try:
-                self._parser.send(character)
-            except StopIteration:
-                fragment = character + fragment
-                self._parser = self._next_parser(self._parser)
-                next(self._parser)
-            except SyntaxError as exc:
-                raise VDFSyntaxError(self._line, self._column, str(exc))
+
+def load(fp, encoding=None, coerce_=UNQUOTED):
+    """
+        Same as loads but takes a file-like object as the source.
+    """
+    return loads(fp.read(), encoding, coerce_)
 
 
-class VDFEncoder(object):
-    pass
+def dumps(obj, encoding=None, indent=u"    ", object_encoders={}):
+    """
+        Serialises a series of nested dictionaries to the VDF/KeyValues
+        format and returns it as a string.
+
+        If 'encoding' isn't specified a Unicode string will be returned,
+        else an ecoded bytestring will be.
+
+        'indent' is the string to be used to indent nested blocks. The
+        string given should be Unicode and represent one level of
+        indentation. Four spaces by default.
+
+        'object_encoders' maps a series of types onto serialisers, which
+        convert objects to their VDF equivalent. If no encoder is
+        specified for a type it'll fall back to using __unicode__.
+        Note that currently this likely causes None to be encoded
+        incorrectly. Also, floats which include the exponent in their
+        textual representaiton may also be 'wrong.'
+    """
+
+    object_codecs = {
+        float: lambda v: unicode(repr(v / 1.0)),
+    }
+    object_codecs.update(object_encoders)
+    # I don't know how TYPE_NONE (None) are meant to be encoded so we
+    # just use unicode() until it's known.
+    lines = []
+
+    def recurse_obj(obj, indent_level=0):
+        ind = indent * indent_level
+        for key, value in obj.iteritems():
+            if isinstance(value, dict):
+                lines.append(u"{}\"{}\"".format(ind, key))
+                lines.append(u"{}{{".format(ind))
+                recurse_obj(value, indent_level + 1)
+                lines.append(u"{}}}".format(ind))
+            else:
+                lines.append(u"{}\"{}\"{}\"{}\"".format(
+                             ind,
+                             key,
+                             indent,
+                             object_codecs.get(type(value), unicode)(value),
+                             ))
+
+    recurse_obj(obj)
+    if encoding is not None:
+        return u"\n".join(lines).encode(encoding)
+    else:
+        return u"\n".join(lines)
 
 
-def load(file_):
-    pass
+def dump(obj, fp, encoding, indent=u"    ", object_encoders={}):
+    """
+        Same as dumps but takes a file-like object 'fp' which will be
+        written to.
+    """
 
-
-def loads(vdf):
-    pass
-
-
-def dump(object_, file_):
-    pass
-
-
-def dumps(object_):
-    pass
+    return fp.write(dumps(obj, encoding, indent, object_encoders))
