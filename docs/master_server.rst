@@ -22,21 +22,28 @@ provides an interface for interacting with the master server.
 valve.source.master_server
 ==========================
 
-.. automodule:: valve.source.master_server
+.. autoclass:: valve.source.master_server.MasterServerQuerier
     :members:
     :special-members:
+
+.. autoclass:: valve.source.master_server.Duplicates
 
 
 Example
 =======
-In this example we will list all European and Asian Team Fortress 2 servers
-running the map *ctf_2fort* and print out their addresses.
+In this example we will list all unique European and Asian Team Fortress 2
+servers running the map *ctf_2fort*.
 
 .. code:: python
 
     import valve.source.master_server
 
     msq = valve.source.master_server.MasterServerQuerier()
-    for address in msq.find(
-            region=["eu", "as"], gamedir="tf", map="ctf_2fort"):
-        print "{0}:{1}".format(*address)
+    servers = msq.find(
+        region=["eu", "as"],
+        duplicates="skip",
+        gamedir="tf",
+        map="ctf_2fort",
+    )
+    for (host, port) in servers:
+        print "{0}:{1}".format(host, port)
