@@ -15,14 +15,13 @@ NoResponseError = valve.source.NoResponseError
 
 
 class ServerQuerier(valve.source.BaseServerQuerier):
-    """Implements the A2S Source server query protocol
+    """Implements the A2S Source server query protocol.
 
     https://developer.valvesoftware.com/wiki/Server_queries
     """
 
     def request(self, request):
-        header = messages.Header(split=messages.NO_SPLIT).encode()
-        self.socket.sendto(header + request.encode(), (self.host, self.port))
+        self.request(messages.Header(split=messages.NO_SPLIT), request)
 
     def get_response(self):
 

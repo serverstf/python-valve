@@ -24,10 +24,19 @@ class BaseServerQuerier(object):
         self.host = address[0]
         self.port = address[1]
         self.timeout = timeout
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    def request(self, request):
-        self.socket.sendto(request.encode(), (self.host, self.port))
+    def request(self, *request):
+        """Issue a request.
+
+        The given request segments will be encoded and combined to
+        form the final message that is sent to the configured address.
+
+        :param request: Request message segments.
+        :param request: valve.source.messages.Message
+        """
+        request_final = b"".join(segment.encode() for segment in request)
+        self._socket.sendto(request_final, (self.host, self.port))
 
     def get_response(self):
         """Wait for a response to a request.
@@ -37,7 +46,7 @@ class BaseServerQuerier(object):
 
         :returns: The raw response as a :class:`bytes`.
         """
-        ready = select.select([self.socket], [], [], self.timeout)
+        ready = select.select([self._socket], [], [], self.timeout)
         if not ready[0]:
             raise NoResponseError("Timed out waiting for response")
         try:
