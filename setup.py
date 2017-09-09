@@ -18,7 +18,7 @@ if sys.version_info[0] == 2:
 
 setuptools.setup(
     name="python-valve",
-    version="1.0.0",
+    version="0.2.0",
     description=("Small library implementing "
                  "various parts of Steam's public interfaces"),
     author="Oliver Ainsworth",
