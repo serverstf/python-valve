@@ -4,6 +4,9 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
+import enum
+import itertools
+
 import six
 
 from . import a2s
@@ -22,6 +25,23 @@ REGION_AFRICA = 0x07
 REGION_REST = 0xFF
 
 MASTER_SERVER_ADDR = ("hl2master.steampowered.com", 27011)
+
+
+class Duplicates(enum.Enum):
+    """Behaviour for duplicate addresses.
+
+    These values are intended to be used with :meth:`MasterServerQuerier.find`
+    to control how duplicate addresses returned by the master server are
+    treated.
+
+    :cvar KEEP: All addresses are returned, even duplicates.
+    :cvar SKIP: Skip duplicate addresses.
+    :cvar STOP: Stop returning addresses when a duplicate is encountered.
+    """
+
+    KEEP = "keep"
+    SKIP = "skip"
+    STOP = "stop"
 
 
 class MasterServerQuerier(a2s.BaseServerQuerier):
@@ -73,7 +93,6 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
         """
         last_addr = "0.0.0.0:0"
         first_request = True
-        previous_addr = set()
         while first_request or last_addr != "0.0.0.0:0":
             first_request = False
             self.request(messages.MasterServerRequest(region=region,
@@ -86,15 +105,30 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
             else:
                 response = messages.MasterServerResponse.decode(raw_response)
                 for address in response["addresses"]:
-                    addr_tuple = (address["host"], address["port"])
-                    if addr_tuple in previous_addr:
-                        # Skip already yielded address
-                        continue
-                    else:
-                        previous_addr.add(addr_tuple)
-                    last_addr = "{}:{}".format(*addr_tuple)
+                    last_addr = "{}:{}".format(
+                        address["host"], address["port"])
                     if not address.is_null:
-                        yield addr_tuple
+                        yield address["host"], address["port"]
+
+    def _deduplicate(self, method, query):
+        """Deduplicate addresses in a :meth:`._query`.
+
+        The given ``method`` should be a :class:`Duplicates` object. The
+        ``query`` is an iterator as returned by :meth:`._query`.
+        """
+        seen = set()
+        if method is Duplicates.KEEP:
+            for address in query:
+                yield address
+        else:
+            for address in query:
+                if address in seen:
+                    if method is Duplicates.SKIP:
+                        continue
+                    elif method is Duplicates.STOP:
+                        break
+                yield address
+                seen.add(address)
 
     def _map_region(self, region):
         """Convert string to numeric region identifier
@@ -145,7 +179,7 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
                 raise ValueError("Invalid region identifier {!r}".format(reg))
         return regions
 
-    def find(self, region="all", **filters):
+    def find(self, region="all", duplicates=Duplicates.KEEP, **filters):
         """Find servers for a particular region and set of filtering rules
 
         This returns an iterator which yields ``(host, port)`` server
@@ -246,6 +280,10 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
             actually satisfy the filter. Because of this it's advisable to
             explicitly check for compliance by querying each server
             individually. See :mod:`valve.source.a2s`.
+
+        The master server may return duplicate addresses. By default, these
+        duplicates will be included in the iterator returned by this method.
+        See :class:`Duplicates` for controlling this behaviour.
         """
         if isinstance(region, (int, six.text_type)):
             regions = self._map_region(region)
@@ -277,6 +315,10 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
         filter_string = "\\".join([part for pair in filter_ for part in pair])
         if filter_string:
             filter_string = "\\" + filter_string
+        queries = []
         for region in regions:
-            for address in self._query(region, filter_string):
-                yield address
+            queries.append(self._query(region, filter_string))
+        query = self._deduplicate(
+            Duplicates(duplicates), itertools.chain.from_iterable(queries))
+        for address in query:
+            yield address
