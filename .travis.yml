@@ -5,8 +5,7 @@ python:
   - "3.5"
   - "pypy"
 install:
-  - pip install -e .[test]
-  - pip install sphinx
+  - pip install -e .[test,docs]
 script:
   - py.test -ra -v tests/
   - sphinx-build -vwT -b html docs/ _build/html
