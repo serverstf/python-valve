@@ -6,6 +6,9 @@ python:
   - "pypy"
 install:
   - pip install -e .[test,docs]
+  - pip install coveralls
 script:
   - py.test -ra -v tests/
   - sphinx-build -vwT -b html docs/ _build/html
+after_success:
+  - coveralls
