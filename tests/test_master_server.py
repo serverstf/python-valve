@@ -340,3 +340,44 @@ class TestQuery(object):
             "address": "0.0.0.0:0",
             "filter": "",
         }
+
+    @pytest.mark.parametrize(("method", "addresses"), [
+        (
+            master_server.Duplicates.KEEP,
+            [
+                ("192.0.2.0", 27015),
+                ("192.0.2.1", 27015),
+                ("192.0.2.2", 27015),
+                ("192.0.2.1", 27015),
+                ("192.0.2.3", 27015),
+            ],
+        ),
+        (
+            master_server.Duplicates.SKIP,
+            [
+                ('192.0.2.0', 27015),
+                ('192.0.2.1', 27015),
+                ('192.0.2.2', 27015),
+                ('192.0.2.3', 27015),
+            ],
+        ),
+        (
+            master_server.Duplicates.STOP,
+            [
+                ('192.0.2.0', 27015),
+                ('192.0.2.1', 27015),
+                ('192.0.2.2', 27015),
+            ],
+        ),
+    ])
+    def test_duplicates(self, msq, response, method, addresses):
+        response([
+            ("192.0.2.0", 27015),
+            ("192.0.2.1", 27015),
+            ("192.0.2.2", 27015),
+            ("192.0.2.1", 27015),
+            ("192.0.2.3", 27015),
+            ("0.0.0.0", 0),
+        ])
+        # `find` invokes `query` once for every region; so only one region
+        assert list(msq.find(region="eu", duplicates=method)) == addresses

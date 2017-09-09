@@ -95,9 +95,8 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
         first_request = True
         while first_request or last_addr != "0.0.0.0:0":
             first_request = False
-            self.request(messages.MasterServerRequest(region=region,
-                                                      address=last_addr,
-                                                      filter=filter_string))
+            self.request(messages.MasterServerRequest(
+                region=region, address=last_addr, filter=filter_string))
             try:
                 raw_response = self.get_response()
             except a2s.NoResponseError:
