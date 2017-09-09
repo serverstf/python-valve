@@ -7,6 +7,7 @@ from __future__ import (absolute_import,
 import pytest
 import six
 
+import valve.source
 import valve.source.a2s
 
 
@@ -15,7 +16,7 @@ def test_tf2_ping(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         latency = a2s.ping()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         pytest.skip("Timedout waiting for response")
     assert latency > 0
 
@@ -25,7 +26,7 @@ def test_tf2_info(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         info = a2s.info()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         pytest.skip("Timedout waiting for response")
     assert info["app_id"] == 440
     assert info["folder"] == "tf"
@@ -37,7 +38,7 @@ def test_tf2_rules(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         rules = a2s.rules()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         pytest.skip("Timedout waiting for response")
 
 
@@ -46,7 +47,7 @@ def test_css_ping(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         latency = a2s.ping()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         pytest.skip("Timedout waiting for response")
     assert latency > 0
 
@@ -56,7 +57,7 @@ def test_css_info(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         info = a2s.info()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         return
     assert info["app_id"] == 240
     assert info["folder"] == "cstrike"
@@ -68,7 +69,7 @@ def test_csgo_ping(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         latency = a2s.ping()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         pytest.skip("Timedout waiting for response")
     assert latency > 0
 
@@ -78,7 +79,7 @@ def test_csgo_info(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         info = a2s.info()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         return
     assert info["app_id"] == 730
     assert info["folder"] == "csgo"
@@ -90,7 +91,7 @@ def test_dota2_ping(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         latency = a2s.ping()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         pytest.skip("Timedout waiting for response")
     assert latency > 0
 
@@ -100,7 +101,7 @@ def test_dota2_info(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         info = a2s.info()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         return
     assert info["app_id"] == 570
     assert info["folder"] == "dota"
@@ -112,7 +113,7 @@ def test_l4d_ping(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         latency = a2s.ping()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         pytest.skip("Timedout waiting for response")
     assert latency > 0
 
@@ -122,7 +123,7 @@ def test_l4d_info(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         info = a2s.info()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         return
     assert info["app_id"] == 500
     assert info["folder"] == "left4dead"
@@ -134,7 +135,7 @@ def test_l4d2_ping(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         latency = a2s.ping()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         pytest.skip("Timedout waiting for response")
     assert latency > 0
 
@@ -144,7 +145,7 @@ def test_l4d2_info(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         info = a2s.info()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         return
     assert info["app_id"] == 550
     assert info["folder"] == "left4dead2"
@@ -157,5 +158,5 @@ def test_ql_rules(address):
     try:
         a2s = valve.source.a2s.ServerQuerier(address)
         rules = a2s.rules()
-    except valve.source.a2s.NoResponseError:
+    except valve.source.NoResponseError:
         return

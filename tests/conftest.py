@@ -90,7 +90,7 @@ def pytest_generate_tests(metafunc):
                     if len(server_addresses) >= address_limit:
                         break
                 server_addresses.append(address)
-        except valve.source.a2s.NoResponseError:
+        except valve.source.NoResponseError:
             pass
         metafunc.parametrize("address", server_addresses)
 

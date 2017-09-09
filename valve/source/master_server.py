@@ -9,7 +9,7 @@ import itertools
 
 import six
 
-from . import a2s
+import valve.source
 from . import messages
 from . import util
 
@@ -44,7 +44,7 @@ class Duplicates(enum.Enum):
     STOP = "stop"
 
 
-class MasterServerQuerier(a2s.BaseServerQuerier):
+class MasterServerQuerier(valve.source.BaseServerQuerier):
     """Implements the Source master server query protocol
 
     https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol
@@ -99,7 +99,7 @@ class MasterServerQuerier(a2s.BaseServerQuerier):
                 region=region, address=last_addr, filter=filter_string))
             try:
                 raw_response = self.get_response()
-            except a2s.NoResponseError:
+            except valve.source.NoResponseError:
                 return
             else:
                 response = messages.MasterServerResponse.decode(raw_response)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2014 Oliver Ainsworth
+# Copyright (C) 2014-2017 Oliver Ainsworth
 
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
@@ -10,6 +10,7 @@ except ImportError:
     import unittest.mock as mock
 import pytest
 
+import valve.source
 from valve.source import a2s
 from valve.source import master_server
 from valve.source import messages
@@ -332,7 +333,7 @@ class TestQuery(object):
         ]
 
     def test_no_response(self, msq, request_, response):
-        msq.get_response.side_effect = a2s.NoResponseError
+        msq.get_response.side_effect = valve.source.NoResponseError
         assert list(msq._query(master_server.REGION_REST, "")) == []
         assert request_.called
         assert request_.call_args[1] == {

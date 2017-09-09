@@ -43,6 +43,7 @@ and Asia running the map `ctf_2fort` along with the players on each
 server sorted by their score.
 
 ```python
+import valve.source
 import valve.source.a2s
 import valve.source.master_server
 
@@ -59,7 +60,7 @@ try:
         for player in sorted(players["players"],
                              key=lambda p: p["score"], reverse=True):
             print "{score} {name}".format(**player)
-except valve.source.a2s.NoResponseError:
+except valve.source.NoResponseError:
     print "Master server request timed out!"
 ```
 

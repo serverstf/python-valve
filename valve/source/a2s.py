@@ -4,43 +4,17 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
-import socket
-import select
 import time
 
+import valve.source
 from . import messages
 
 
-class NoResponseError(Exception):
-    pass
+# NOTE: backwards compatability; remove soon(tm)
+NoResponseError = valve.source.NoResponseError
 
 
-class BaseServerQuerier(object):
-
-    def __init__(self, address, timeout=5.0):
-        self.host = address[0]
-        self.port = address[1]
-        self.timeout = timeout
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-    def request(self, request):
-        self.socket.sendto(request.encode(), (self.host, self.port))
-
-    def get_response(self):
-        ready = select.select([self.socket], [], [], self.timeout)
-        if not ready[0]:
-            raise NoResponseError("Timed out waiting for response")
-        try:
-            data = ready[0][0].recv(1400)
-        except socket.error as exc:
-            raise NoResponseError(exc)
-        return data
-
-    def __del__(self):
-        self.socket.close()
-
-
-class ServerQuerier(BaseServerQuerier):
+class ServerQuerier(valve.source.BaseServerQuerier):
     """Implements the A2S Source server query protocol
 
     https://developer.valvesoftware.com/wiki/Server_queries
@@ -52,7 +26,7 @@ class ServerQuerier(BaseServerQuerier):
 
     def get_response(self):
 
-        data = BaseServerQuerier.get_response(self)
+        data = valve.source.BaseServerQuerier.get_response(self)
 
         # According to https://developer.valvesoftware.com/wiki/Server_queries
         # "TF2 currently does not split replies, expect A2S_PLAYER and
