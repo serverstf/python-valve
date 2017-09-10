@@ -4,6 +4,7 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
+  - "3.7-dev"
   - "pypy"
   - "pypy3"
 install:
@@ -14,4 +15,5 @@ script:
   - py.test -ra -v tests/
   - sphinx-build -vwT -b html docs/ _build/html
 after_success:
+  - ls -la
   - coveralls
