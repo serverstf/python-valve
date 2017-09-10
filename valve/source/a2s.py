@@ -18,6 +18,10 @@ class ServerQuerier(valve.source.BaseServerQuerier):
     """Implements the A2S Source server query protocol.
 
     https://developer.valvesoftware.com/wiki/Server_queries
+
+    .. note::
+        Instantiating this class creates a socket. Be sure to close the
+        querier once finished with it. See :class:`valve.source.BaseServerQuerier`.
     """
 
     def request(self, request):
@@ -73,8 +77,8 @@ class ServerQuerier(valve.source.BaseServerQuerier):
 
         .. code:: python
 
-            server = ServerQuerier(...)
-            print server.info()["server_name"]
+            with ServerQuerier(...) as server:
+                print(server.info()["server_name"])
 
         The following fields are available on the response:
 
@@ -177,12 +181,12 @@ class ServerQuerier(valve.source.BaseServerQuerier):
 
             .. code-block:: python
 
-                query = ServerQuerier((..., ...))
-                players = []
-                for player in query.players()["players"]:
-                    if player["name"]:
-                        players.append(player)
-                player_count = len(players)
+                with ServerQuerier(...) as query:
+                    players = []
+                    for player in query.players()["players"]:
+                        if player["name"]:
+                            players.append(player)
+                    player_count = len(players)
         """
 
         # TF2 and L4D2's A2S_SERVERQUERY_GETCHALLENGE doesn't work so

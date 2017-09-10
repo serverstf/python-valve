@@ -18,15 +18,12 @@ provides an interface for interacting with the master server.
     ``hl2master.steampowered.com`` which, at the time of writing, has three
     ``A`` entries.
 
-
-valve.source.master_server
-==========================
-
 .. autoclass:: valve.source.master_server.MasterServerQuerier
     :members:
     :special-members:
 
 .. autoclass:: valve.source.master_server.Duplicates
+    :show-inheritance:
 
 
 Example
@@ -38,12 +35,12 @@ servers running the map *ctf_2fort*.
 
     import valve.source.master_server
 
-    msq = valve.source.master_server.MasterServerQuerier()
-    servers = msq.find(
-        region=["eu", "as"],
-        duplicates="skip",
-        gamedir="tf",
-        map="ctf_2fort",
-    )
-    for (host, port) in servers:
-        print "{0}:{1}".format(host, port)
+    with valve.source.master_server.MasterServerQuerier() as msq:
+        servers = msq.find(
+            region=["eu", "as"],
+            duplicates="skip",
+            gamedir="tf",
+            map="ctf_2fort",
+        )
+        for host, port in servers:
+            print "{0}:{1}".format(host, port)

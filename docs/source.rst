@@ -1,12 +1,15 @@
 Interacting with Source Servers
 *******************************
+
+.. module:: valve.source.a2s
+
 Source provides the "A2S" protocol for querying game servers. This protocol
 is used by the Steam and in-game server browsers to list information about
 servers such as their name, player count and whether or not they're password
-protected. :mod:`valve.source.server` provides a client implementation of
+protected. :mod:`valve.source.a2s` provides a client implementation of
 A2S.
 
-.. automodule:: valve.source.a2s
+.. autoclass:: valve.source.a2s.ServerQuerier
     :members:
 
 
@@ -22,18 +25,39 @@ score-decesending.
 
     SERVER_ADDRESS = (..., ...)
 
-    server = valve.source.a2s.ServerQuerier(SERVER_ADDRESS)
-    info = server.info()
-    players = server.players()
+    with valve.source.a2s.ServerQuerier(SERVER_ADDRESS) as server:
+        info = server.info()
+        players = server.players()
 
-    print "{player_count}/{max_players} {server_name}".format(**info)
+    print("{player_count}/{max_players} {server_name}".format(**info))
     for player in sorted(players["players"],
                          key=lambda p: p["score"], reverse=True):
-        print "{score} {name}".format(**player)
+        print("{score} {name}".format(**player))
 
 
-Utilities
-=========
+Queriers and Exceptions
+=======================
+
+.. module:: valve.source
+
+Both :class:`valve.source.a2s.ServerQuerier` and
+:class:`valve.source.master_server.MasterServerQuerier` are based on a
+common querier interface. They also raise similar exceptions. All of these
+live in the :mod:`valve.source` module.
+
+.. autoclass:: valve.source.BaseServerQuerier
+    :members:
+
+.. autoexception:: valve.source.NoResponseError
+
+.. autoexception:: valve.source.QuerierClosedError
+
+
+Identifying Server Platforms
+============================
+
+.. module:: valve.source.util
+
 :mod:`valve.source.util` provides a handful of utility classes which are
 used when querying Source servers.
 
