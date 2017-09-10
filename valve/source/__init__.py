@@ -9,6 +9,8 @@ import select
 import socket
 import warnings
 
+import six
+
 
 class NoResponseError(Exception):
     """Raised when a server querier doesn't receive a response."""
@@ -120,7 +122,7 @@ class BaseQuerier(object):
         try:
             data = ready[0][0].recv(1400)
         except socket.error as exc:
-            raise NoResponseError(exc) from exc
+            six.raise_from(NoResponseError(exc))
         return data
 
     del _check_open
