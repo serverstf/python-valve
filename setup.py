@@ -7,21 +7,24 @@ import textwrap
 import setuptools
 
 
-install_requires = [
-    "docopt>=0.6.2",
-    "monotonic",
-    "requests>=2.0",
-    "six>=1.6",
-]
-if sys.version_info[0] == 2:
-    install_requires.append("enum34>=1.1")
-
-
 def readme():
     """Load README contents."""
-    path = os.path.join(os.path.dirname(__file__), 'README.rst')
+    path = os.path.join(os.path.dirname(__file__), "README.rst")
     with open(path) as readme:
         return readme.read()
+
+
+def install_requires():
+    """Determine installation requirements."""
+    requirements = [
+        "docopt>=0.6.2",
+        "monotonic",
+        "requests>=2.0",
+        "six>=1.6",
+    ]
+    if sys.version_info[0] == 2:
+        requirements.append("enum34>=1.1")
+    return requirements
 
 
 setuptools.setup(
@@ -33,7 +36,7 @@ setuptools.setup(
     author="Oliver Ainsworth",
     author_email="ottajay@googlemail.com",
     packages=setuptools.find_packages(),
-    install_requires=install_requires,
+    install_requires=install_requires(),
     extras_require={
         "development": [
             "pylint",
