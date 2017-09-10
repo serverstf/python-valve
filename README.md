@@ -1,7 +1,7 @@
 [![PyPI](https://img.shields.io/pypi/v/python-valve.svg?style=flat-square)](https://pypi.python.org/pypi/python-valve)
 [![PyPI](https://img.shields.io/pypi/pyversions/python-valve.svg?style=flat-square)](https://pypi.python.org/pypi/python-valve)
 [![Travis](https://img.shields.io/travis/Holiverh/python-valve.svg?style=flat-square)](https://travis-ci.org/Holiverh/python-valve)
-
+[![Coveralls](https://img.shields.io/coveralls/Holiverh/python-valve.svg?style=flat-square)](https://coveralls.io/github/Holiverh/python-valve)
 
 # Python-valve #####
 
