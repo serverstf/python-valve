@@ -1,4 +1,4 @@
-|PyPI| |PyPI| |Travis| |Coveralls|
+|PyPI| |PyPIPythonVersions| |Travis| |Coveralls|
 
 Python-valve
 ============
@@ -42,7 +42,7 @@ Server Query Example
 
 In this example we demonstrate the Source master server and A2S query
 implementations by listing all Team Fortress 2 servers in Europe and
-Asia running the map ``ctf_2fort`` along with the players on each server
+Asia running the map ``ctf_2fort``, along with the players on each server
 sorted by their score.
 
 .. code:: python
@@ -73,9 +73,9 @@ Versioning
 Python-valve uses `Semantic Versioning <http://semver.org/>`__. At this
 time, Python-valve is yet to reach its 1.0 release. Hence, every minor
 version should be considered to potentially contain breaking changes.
-Hence, when specfiying Python-valve as a requirement, either in
-``setup.py`` or ``requirements.txt`` its advised to to pin the specific
-minor version. E.g. ``python-valve==0.2.0``.
+Hence, when specifying Python-valve as a requirement, either in
+``setup.py`` or ``requirements.txt``, it's advised to to pin the
+specific minor version. E.g. ``python-valve==0.2.0``.
 
 
 Testing
@@ -98,11 +98,10 @@ Documentation
 -------------
 
 Documentation is written using `Sphinx <http://www.sphinx-doc.org/>`__
-and is hosted on `Read the
-Docs <http://python-valve.readthedocs.org/>`__.
+and is hosted on `Read the Docs <http://python-valve.readthedocs.org/>`__.
 
-If working on Python-valve use the following to install the
-documentation dependencies, build it and then open it in a browser.
+If working on Python-valve use the following to install the documentation
+dependencies, build the docs and then open them in a browser.
 
 .. code:: shell
 
@@ -115,10 +114,9 @@ Python 2
 --------
 
 Python-valve supports Python 2.7! However, it's important to bare in
-mind that Python 2.7 will not be maintained past 2020. As such,
-Python-valve *may* drop support for Python 2.7 in future a major release
-before 2020 in order to make of new, non-backwards compatible Python 3
-features.
+mind that Python 2.7 will not be maintained past 2020. Python-valve
+*may* drop support for Python 2.7 in a future major release before 2020
+in order to make use of new, non-backwards compatible Python 3 features.
 
 It's strongly encouraged that new Python-valve projects use Python 3.
 
@@ -140,7 +138,7 @@ Python-valve contributors in any way.
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/python-valve.svg?style=flat-square
    :target: https://pypi.python.org/pypi/python-valve
-.. |PyPI| image:: https://img.shields.io/pypi/pyversions/python-valve.svg?style=flat-square
+.. |PyPIPythonVersions| image:: https://img.shields.io/pypi/pyversions/python-valve.svg?style=flat-square
   :target: https://pypi.python.org/pypi/python-valve
 .. |Travis| image:: https://img.shields.io/travis/Holiverh/python-valve.svg?style=flat-square
    :target: https://travis-ci.org/Holiverh/python-valve
