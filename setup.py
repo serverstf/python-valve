@@ -36,7 +36,7 @@ setuptools.setup(
     author="Oliver Ainsworth",
     author_email="ottajay@googlemail.com",
     url="https://github.com/Holiverh/python-valve",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(exclude=["tests"]),
     install_requires=install_requires(),
     extras_require={
         "development": [
