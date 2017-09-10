@@ -4,7 +4,7 @@
 from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
-import time
+import monotonic
 
 import valve.source
 from . import messages
@@ -64,10 +64,11 @@ class ServerQuerier(valve.source.BaseQuerier):
         be negligble.
         """
 
-        t_send = time.time()
+        time_sent = monontic.monotonic()
         self.request(messages.InfoRequest())
         messages.InfoResponse.decode(self.get_response())
-        return (time.time() - t_send) * 1000.0
+        time_received = monotonic.monotonic()
+        return (time_received - t_sent) * 1000.0
 
     def info(self):
         """Retreive information about the server state
