@@ -30,11 +30,12 @@ def install_requires():
 setuptools.setup(
     name="python-valve",
     version="0.2.0",
-    description=("Small library implementing "
-                 "various parts of Steam's public interfaces"),
+    description=("Python implemntation RCON, A2S, VDF, the Steam Web "
+                 "API and various other Valve products and services.")
     long_description=readme(),
     author="Oliver Ainsworth",
     author_email="ottajay@googlemail.com",
+    url="https://github.com/Holiverh/python-valve",
     packages=setuptools.find_packages(),
     install_requires=install_requires(),
     extras_require={
@@ -55,8 +56,9 @@ setuptools.setup(
     },
     license="MIT License",
     classifiers=[
-        "License :: OSI Approved :: MIT License",
         "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
@@ -64,5 +66,6 @@ setuptools.setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: Implementation :: PyPy",
+        "Topic :: Games/Entertainment",
     ],
 )
