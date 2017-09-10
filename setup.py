@@ -31,7 +31,7 @@ setuptools.setup(
     name="python-valve",
     version="0.2.0",
     description=("Python implemntation RCON, A2S, VDF, the Steam Web "
-                 "API and various other Valve products and services.")
+                 "API and various other Valve products and services."),
     long_description=readme(),
     author="Oliver Ainsworth",
     author_email="ottajay@googlemail.com",
