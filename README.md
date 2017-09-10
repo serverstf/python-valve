@@ -82,6 +82,7 @@ tests included which run against real Source servers.
 
 If working on Python-valve use the following to install the test
 dependencies and run the tests:
+
 ```shell
 pip install -e .[test]
 py.test tests/ --cov valve/
@@ -92,6 +93,15 @@ py.test tests/ --cov valve/
 
 Documentation is written using [Sphinx](http://www.sphinx-doc.org/) and
 is hosted on [Read the Docs](http://python-valve.readthedocs.org/).
+
+If working on Python-valve use the following to install the documentation
+dependencies, build it and then open it in a browser.
+
+```shell
+pip install -e .[docs]
+(cd docs/ && make html)
+xdg-open docs/_build/html/index.html
+```
 
 
 ## Python 2 ####
