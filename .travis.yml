@@ -7,9 +7,10 @@ python:
   - "pypy"
   - "pypy3"
 install:
-  - pip install -e .[test,docs]
+  - pip install -e .[development,test,docs]
   - pip install coveralls
 script:
+  - pylint -ry valve/ || true
   - py.test -ra -v tests/
   - sphinx-build -vwT -b html docs/ _build/html
 after_success:
