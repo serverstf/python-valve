@@ -11,10 +11,10 @@ import pytest
 import valve.source
 
 
-class TestBaseServerQuerier:
+class TestBaseQuerier:
 
     def test(self):
-        querier = valve.source.BaseServerQuerier(('192.0.2.0', 27015))
+        querier = valve.source.BaseQuerier(('192.0.2.0', 27015))
         assert querier.host == '192.0.2.0'
         assert querier.port == 27015
         assert querier._socket.family == socket.AF_INET
@@ -23,7 +23,7 @@ class TestBaseServerQuerier:
         assert querier._socket is None
 
     def test_close(self):
-        querier = valve.source.BaseServerQuerier(('192.0.2.0', 27015))
+        querier = valve.source.BaseQuerier(('192.0.2.0', 27015))
         assert querier._socket.family == socket.AF_INET
         assert querier._socket.type == socket.SOCK_DGRAM
         querier.close()
@@ -34,7 +34,7 @@ class TestBaseServerQuerier:
             querier.get_response()
 
     def test_close_redundant(self):
-        querier = valve.source.BaseServerQuerier(('192.0.2.0', 27015))
+        querier = valve.source.BaseQuerier(('192.0.2.0', 27015))
         assert querier._socket.family == socket.AF_INET
         assert querier._socket.type == socket.SOCK_DGRAM
         querier.close()
@@ -51,7 +51,7 @@ class TestBaseServerQuerier:
             querier.get_response()
 
     def test_context_manager(self):
-        with valve.source.BaseServerQuerier(('192.0.2.0', 27015)) as querier:
+        with valve.source.BaseQuerier(('192.0.2.0', 27015)) as querier:
             assert querier._socket.family == socket.AF_INET
             assert querier._socket.type == socket.SOCK_DGRAM
         assert querier._socket is None
@@ -61,7 +61,7 @@ class TestBaseServerQuerier:
             querier.get_response()
 
     def test_context_manager_close_before_exit(self):
-        with valve.source.BaseServerQuerier(('192.0.2.0', 27015)) as querier:
+        with valve.source.BaseQuerier(('192.0.2.0', 27015)) as querier:
             assert querier._socket.family == socket.AF_INET
             assert querier._socket.type == socket.SOCK_DGRAM
             with pytest.warns(UserWarning):
@@ -78,7 +78,7 @@ class TestBaseServerQuerier:
             querier.get_response()
 
     def test_context_manager_close_after_exit(self):
-        with valve.source.BaseServerQuerier(('192.0.2.0', 27015)) as querier:
+        with valve.source.BaseQuerier(('192.0.2.0', 27015)) as querier:
             assert querier._socket.family == socket.AF_INET
             assert querier._socket.type == socket.SOCK_DGRAM
         assert querier._socket is None

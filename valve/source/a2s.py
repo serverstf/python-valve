@@ -14,14 +14,14 @@ from . import messages
 NoResponseError = valve.source.NoResponseError
 
 
-class ServerQuerier(valve.source.BaseServerQuerier):
+class ServerQuerier(valve.source.BaseQuerier):
     """Implements the A2S Source server query protocol.
 
     https://developer.valvesoftware.com/wiki/Server_queries
 
     .. note::
         Instantiating this class creates a socket. Be sure to close the
-        querier once finished with it. See :class:`valve.source.BaseServerQuerier`.
+        querier once finished with it. See :class:`valve.source.BaseQuerier`.
     """
 
     def request(self, request):
@@ -29,7 +29,7 @@ class ServerQuerier(valve.source.BaseServerQuerier):
 
     def get_response(self):
 
-        data = valve.source.BaseServerQuerier.get_response(self)
+        data = valve.source.BaseQuerier.get_response(self)
 
         # According to https://developer.valvesoftware.com/wiki/Server_queries
         # "TF2 currently does not split replies, expect A2S_PLAYER and
@@ -48,7 +48,7 @@ class ServerQuerier(valve.source.BaseServerQuerier):
                 raise NotImplementedError("Fragments are compressed")
             fragments[fragment["fragment_id"]] = fragment
             while len(fragments) < fragment["fragment_count"]:
-                data = BaseServerQuerier.get_response(self)
+                data = BaseQuerier.get_response(self)
                 fragment = messages.Fragment.decode(
                     messages.Header.decode(data).payload)
                 fragments[fragment["fragment_id"]] = fragment

@@ -45,7 +45,7 @@ Both :class:`valve.source.a2s.ServerQuerier` and
 common querier interface. They also raise similar exceptions. All of these
 live in the :mod:`valve.source` module.
 
-.. autoclass:: valve.source.BaseServerQuerier
+.. autoclass:: valve.source.BaseQuerier
     :members:
 
 .. autoexception:: valve.source.NoResponseError

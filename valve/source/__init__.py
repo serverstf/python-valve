@@ -18,7 +18,7 @@ class QuerierClosedError(Exception):
     """Raised when attempting to use a querier after it's closed."""
 
 
-class BaseServerQuerier(object):
+class BaseQuerier(object):
     """Base class for implementing source server queriers.
 
     When an instance of this class is initialised a socket is created.
@@ -27,7 +27,7 @@ class BaseServerQuerier(object):
 
     .. code-block:: python
 
-        querier = valve.source.BaseServerQuerier(('...', 27015))
+        querier = valve.source.BaseQuerier(('...', 27015))
         try:
             querier.request(...)
         finally:
@@ -39,7 +39,7 @@ class BaseServerQuerier(object):
 
     .. code-block:: python
 
-        with valve.source.BaseServerQuerier(('...', 27015)) as querier:
+        with valve.source.BaseQuerier(('...', 27015)) as querier:
             querier.request(...)
 
     Once a querier has been closed, any attempts to make additional requests

@@ -44,14 +44,14 @@ class Duplicates(enum.Enum):
     STOP = "stop"
 
 
-class MasterServerQuerier(valve.source.BaseServerQuerier):
+class MasterServerQuerier(valve.source.BaseQuerier):
     """Implements the Source master server query protocol
 
     https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol
 
     .. note::
         Instantiating this class creates a socket. Be sure to close the
-        querier once finished with it. See :class:`valve.source.BaseServerQuerier`.
+        querier once finished with it. See :class:`valve.source.BaseQuerier`.
     """
 
     def __init__(self, address=MASTER_SERVER_ADDR, timeout=10.0):
