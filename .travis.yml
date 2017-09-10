@@ -12,7 +12,7 @@ install:
   - pip install coveralls
 script:
   - pylint -ry valve/ || true
-  - py.test -ra -v tests/
+  - py.test -ra -v tests/ --cov valve/
   - sphinx-build -vwT -b html docs/ _build/html
 after_success:
   - ls -la
