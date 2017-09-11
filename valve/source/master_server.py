@@ -182,7 +182,7 @@ class MasterServerQuerier(valve.source.BaseQuerier):
                 raise ValueError("Invalid region identifier {!r}".format(reg))
         return regions
 
-    def find(self, region="all", duplicates=Duplicates.KEEP, **filters):
+    def find(self, region="all", duplicates=Duplicates.SKIP, **filters):
         """Find servers for a particular region and set of filtering rules
 
         This returns an iterator which yields ``(host, port)`` server
@@ -285,8 +285,8 @@ class MasterServerQuerier(valve.source.BaseQuerier):
             individually. See :mod:`valve.source.a2s`.
 
         The master server may return duplicate addresses. By default, these
-        duplicates will be included in the iterator returned by this method.
-        See :class:`Duplicates` for controlling this behaviour.
+        duplicates are excldued from the iterator returned by this method.
+        See :class:`Duplicates` for controller this behaviour.
         """
         if isinstance(region, (int, six.text_type)):
             regions = self._map_region(region)
