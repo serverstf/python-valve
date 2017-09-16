@@ -55,11 +55,25 @@ class VDFTranscluder:
 
 
 class VDFIgnoreTranscluder(VDFTranscluder):
-    def transclude(self, name): yield ""
+    """Ignored VDF transclusions.
+
+    Any attempt to include a VDF document using this transcluder will
+    result in the document being treated as if it were empty.
+    """
+
+    def transclude(self, name):
+        yield ""
 
 
 class VDFDisabledTranscluder(VDFTranscluder):
-    def transclude(self, name): yield ""
+    """Disable VDF transclusion.
+
+    Any attempt to include a VDF document using this transcluder will
+    fail with  :exc:`VDFTransclusionError`
+    """
+
+    def transclude(self, name):
+        raise VDFTransclusionError("Transclusion disabled")
 
 
 class VDFFileSystemTranscluder(VDFTranscluder):
@@ -172,5 +186,5 @@ def dump(object_, writable):
 def dumps(object_):
     """Serialise an object into a VDF string."""
     buffer_ = io.StringIO()
-    dump(object_, buffer_, transcluder)
+    dump(object_, buffer_)
     return buffer_.getvalue()

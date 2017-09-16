@@ -14,6 +14,21 @@ def transcluder():
     return valve.vdf.VDFTestTranscluder()
 
 
+class TestVDFIgnoreTranscluder:
+
+    def test(self):
+        transcluder = valve.vdf.VDFIgnoreTranscluder()
+        assert "".join(transcluder.transclude("foo")) == ""
+
+
+class TestVDFDisabledTranscluder:
+
+    def test(self):
+        transcluder = valve.vdf.VDFDisabledTranscluder()
+        with pytest.raises(valve.vdf.VDFTransclusionError):
+            transcluder.transclude("foo")
+
+
 class TestVDFTestTranscluder:
 
     def test_register(self, transcluder):
