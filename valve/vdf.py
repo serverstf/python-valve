@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Copyright (C) 2013-2017 Oliver Ainsworth
 
 """Tools for handling the Valve Data Format (VDF).
 
@@ -13,6 +14,7 @@ from __future__ import (absolute_import,
                         unicode_literals, print_function, division)
 
 import abc
+import io
 
 import six
 
@@ -21,188 +23,154 @@ class VDFError(Exception):
     """Base exception for all VDF errors."""
 
 
-class VDFSyntaxError(SyntaxError, VDFError):
-    """Exception for VDF syntax errors."""
-
-    def __init__(self, line, column, message):
-        self.line = line
-        self.column = column
-        self.message = message
-
-    def __str__(self):
-        return "line {0.line}, column {0.column}: {0.message}".format(self)
-
-
-class IncludeResolutionError(VDFError):
-    """Raised when resolving an include fails."""
+class VDFTransclusionError(Exception):
+    """Raised for errors transcluding VDF documents."""
 
 
 @six.add_metaclass(abc.ABCMeta)
-class IncludeResolver(object):
-    """Base class for resolving includes.
+class VDFTranscluder:
+    """Abstract base class for VDF document transcluders.
 
-    VDF supports includes via ``#include`` and ``#base``. Whenever the
-    parser reaches one of these includes it needs to resolve the name
-    to VDF fragments which are then parsed.
-
-    You cannot instantiate this class directly. Use one of the concrete
-    implementations: :class:`IgnoreIncludeResolver`,
-    :class:`DisabledIncludeResolver` or :class:`FileSystemIncludeResolver`.
+    When :class:`VDFDecoder` encounters a ``#base`` transclusion
+    directive in a VDF document it will defer loading of the document
+    to a configured transcluder.
     """
 
     @abc.abstractmethod
-    def resolve(self, name):
-        """Resolve a VDF include to VDF fragments.
+    def transclude(self, name):
+        """Transclude a VDF document by name.
 
-        :param str name: the name of the VDF document to include.
+        :param name: The name of the VDF document to be transcluded.
+            The exact semantics of the name is dependant on the concrete
+            transcluder implementation.
+        :type name: str
 
-        :raises IncludeResolutionError: if the name cannot be resolved.
+        :raises VDFTransclusionError: If the requested document cannot
+            be transcluded for any reason.
 
-        :returns: an interator of VDF fragments as strings.
+        :returns: An iterator of the transcluded document's contents as
+            strings.
         """
+        raise NotImplementedError  # pragma: no cover
 
 
-class IgnoreIncludeResolver(IncludeResolver):
-    """Include resolver that doesn't actually resolve to anything.
+class VDFIgnoreTranscluder(VDFTranscluder):
+    def transclude(self, name): yield ""
 
-    Specifically, all names resolve to an empty fragment.
+
+class VDFDisabledTranscluder(VDFTranscluder):
+    def transclude(self, name): yield ""
+
+
+class VDFFileSystemTranscluder(VDFTranscluder):
+    def __init__(self, buffer_size=4096): pass
+    def transclude(self, name): yield ""
+
+
+class VDFTestTranscluder(VDFTranscluder):
+    """VDF transcluder for testing.
+
+    Instances of this transcluder allow documents to be manually
+    specified via :meth:`register`. Registered documents can then
+    be removed with :meth:`unregister`.
     """
 
-    def resolve(self, name):
-        yield ""
+    def __init__(self):
+        self._documents = {}
+
+    def register(self, name, document):
+        """Register a document.
+
+        :param name: Name of the document to register.
+        :type name: str
+        :param document: Document contents.
+        :type document: str
+
+        :raises LookupError: If the a document with the given name
+            has already been registered.
+        """
+        if name in self._documents:
+            raise LookupError(
+                "Document with name '{}' already registered".format(name))
+        self._documents[name] = document
+
+    def unregister(self, name):
+        """Unregister a document.
+
+        :param name: Name of the document to unregister.
+        :type name: str
+
+        :raises LookupError: If no document with the given name has
+            been registered.
+        """
+        if name not in self._documents:
+            raise LookupError("No document with name '{}'".format(name))
+        self._documents.pop(name, None)
+
+    def transclude(self, name):
+        if name not in self._documents:
+            raise VDFTransclusionError(
+                "No document with name '{}'".format(name))
+        yield self._documents[name]
 
 
-class DisabledIncludeResolver(IncludeResolver):
-    """Disables include resolution.
+class VDFDecoder:
 
-    Instead this always raises :exc:`IncludeResolutionError` when attempting
-    to resolve an include.
-    """
+    def __init__(self, transcluder): pass
+    def __enter__(self): pass
+    def __exit__(self): pass
 
-    def resolve(self, name):
-        raise IncludeResolutionError("Includes are disabled")
-
-
-class FileSystemIncludeResolver(IncludeResolver):
-    """Resolve includes relative to a file-system path.
-
-    :param pathlib.Path path: the base path to resolve includes relative to.
-    :param int chunk_size: the number of bytes to read from the file for
-        each fragment.
-    """
-
-    def __init__(self, path, chunk_size=4096):
-        self._path = path
-        self._chunk_size = chunk_size
-
-    def resolve(self, name):
-        include_path = self._path / name
-        try:
-            with include_path.open() as include_file:
-                for fragment in iter(
-                        lambda: include_file.read(self._chunk_size), ""):
-                    yield fragment
-        except OSError as exc:
-            raise IncludeResolutionError(str(exc))
+    def feed(self, fragment): pass
+    def complete(self): pass
+    def on_object_enter(self): pass
+    def on_object_exit(self): pass
+    def on_key(self, key): pass
+    def on_value(self, value): pass
 
 
-class VDFDecoder(object):
-    """Streaming VDF decoder."""
+class VDFObjectDecoder(VDFDecoder):
 
-    _CURLY_LEFT_BRACKET = "{"
-    _CURLY_RIGHT_BRACKET = "}"
-    _LINE_FEED = "\n"
-    _QUOTATION_MARK = "\""
-    _REVERSE_SOLIDUS = "\\"
-    _WHITESPACE = [" ", "\t"]
-    _ESCAPE_SEQUENCES = {
-        "n": "\n",
-        "t": "\t",
-        "\\": "\\",
-        "\"": "\"",
-    }
-
-    def __init__(self, includes):
-        self._line = 1
-        self._column = 0
-        self._includes = includes
-        self._parser = self._parse_whitespace()
-        next(self._parser)
+    def __init__(self, transcluder):
         self.object = {}
-        self._active_object = self.object
-        self._key = ""
-        self._value = None
+        self._key = None
+        self._stack = [self.object]
 
-    def _parse_whitespace(self):
-        while True:
-            character = yield
-            if character not in self._WHITESPACE:
-                return
+    def on_object_enter(self):
+        object_ = {}
+        self._stack[-1][self._key] = object_
+        self._stack.append(object_)
+        self._key = None
 
-    def _parse_key(self):
-        key = ""
-        first_character = yield
-        if first_character == self._QUOTATION_MARK:
-            quoted = True
-        else:
-            quoted = False
-        escape = False
-        while True:
-            character = yield
-            if not escape and character == self._QUOTATION_MARK:
-                yield  # Consume trailing quotation mark
-                break
-            if character == self._REVERSE_SOLIDUS:
-                escape = True
-                continue
-            if escape:
-                if character in self._ESCAPE_SEQUENCES:
-                    character = self._ESCAPE_SEQUENCES[character]
-                    escape = False
-                else:
-                    raise SyntaxError(
-                        "Invalid escape sequence '\\{}'".format(character))
-            key += character
+    def on_object_exit(self):
+        self._stack.pop()
+
+    def on_key(self, key):
         self._key = key
 
-    def _next_parser(self, previous):
-        if self._key:
-            return self._parse_whitespace()
-        else:
-            return self._parse_key()
-
-    def feed(self, fragment):
-        while fragment:
-            character, fragment = fragment[0], fragment[1:]
-            self._column += 1
-            if character == self._LINE_FEED:
-                self._line += 1
-                self._column = 1
-            try:
-                self._parser.send(character)
-            except StopIteration:
-                fragment = character + fragment
-                self._parser = self._next_parser(self._parser)
-                next(self._parser)
-            except SyntaxError as exc:
-                raise VDFSyntaxError(self._line, self._column, str(exc))
+    def on_value(self, value):
+        self._stack[-1][self._key] = value
+        self._key = None
 
 
-class VDFEncoder(object):
-    pass
+def load(readable, transcluder=VDFDisabledTranscluder()):
+    """Load an object from a VDF file."""
+    with VDFObjectDecoder(transcluder) as decoder:
+        for chunk in iter(lambda: readable.read(4096), ''):
+            decoder.feed(chunk)
+    return decoder.object
 
 
-def load(file_):
-    pass
+def loads(vdf, transcluder=VDFDisabledTranscluder()):
+    """Load an object from a VDF string."""
+    return load(io.StringIO(vdf))
 
 
-def loads(vdf):
-    pass
-
-
-def dump(object_, file_):
-    pass
+def dump(object_, writable):
+    """Serialise an object into a VDF file."""
 
 
 def dumps(object_):
-    pass
+    """Serialise an object into a VDF string."""
+    buffer_ = io.StringIO()
+    dump(object_, buffer_, transcluder)
+    return buffer_.getvalue()
