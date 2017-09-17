@@ -140,7 +140,7 @@ Python-valve contributors in any way.
    :target: https://pypi.python.org/pypi/python-valve
 .. |PyPIPythonVersions| image:: https://img.shields.io/pypi/pyversions/python-valve.svg?style=flat-square
   :target: https://pypi.python.org/pypi/python-valve
-.. |Travis| image:: https://img.shields.io/travis/Holiverh/python-valve.svg?style=flat-square
-   :target: https://travis-ci.org/Holiverh/python-valve
-.. |Coveralls| image:: https://img.shields.io/coveralls/Holiverh/python-valve.svg?style=flat-square
-   :target: https://coveralls.io/github/Holiverh/python-valve
+.. |Travis| image:: https://img.shields.io/travis/serverstf/python-valve.svg?style=flat-square
+   :target: https://travis-ci.org/serverstf/python-valve
+.. |Coveralls| image:: https://img.shields.io/coveralls/serverstf/python-valve.svg?style=flat-square
+   :target: https://coveralls.io/github/serverstf/python-valve
