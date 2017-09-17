@@ -129,6 +129,25 @@ class VDFTestTranscluder(VDFTranscluder):
 
 
 class VDFDecoder:
+    """Base VDF decoder.
+
+    .. code-block:: abnf
+
+        character           = %x00-%x08 / %x0B-%x1F / %x21 / %x23-%x10FFFF
+        quoted-character    = character / WSP / LF
+        escape-sequence     = \ ("\" / DQUOTE / "t" / "n")
+        unquoted            = *(character / escape-sequence)
+        key                 = unquoted 1*WSP
+        value               = unquoted
+        quoted-key          = DQUOTE *(quoted-character / escape-sequence) DQUOTE
+        quoted-value        = DQUOTE *(quoted-character / escape-sequence) DQUOTE
+        comment             = *WSP "/" *(%x00-%x09 / %x0B-%x10FFFF) 1*LF
+        pair                = *WSP (key / quoted-key) *WSP (value / quoted-value) (comment / *WSP 1*LF)
+        block               = (key / quoted-key) *(WSP / LF) "{" document "}" *WSP LF
+        transclusion-name   = quoted-key
+        transclusion        = ("#base" / (DQUOTE "#base" DQUOTE)) 1*WSP transclude-name *WSP 1*LF
+        document            = *(comment / transclusion / pair / block)
+    """
 
     def __init__(self, transcluder): pass
     def __enter__(self): pass

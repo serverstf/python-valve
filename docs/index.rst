@@ -16,6 +16,7 @@ Contents:
    steamid
    rcon
    api
+   vdf
 
 
 Although Python libraries *do* already exist for many aspects which
