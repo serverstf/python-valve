@@ -25,7 +25,8 @@ class ServerQuerier(valve.source.BaseQuerier):
     """
 
     def request(self, request):
-        self.request(messages.Header(split=messages.NO_SPLIT), request)
+        super(ServerQuerier, self).request(
+            messages.Header(split=messages.NO_SPLIT), request)
 
     def get_response(self):
 
