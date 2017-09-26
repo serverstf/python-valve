@@ -29,7 +29,7 @@ def install_requires():
 
 setuptools.setup(
     name="python-valve",
-    version="0.2.0",
+    version="0.2.1",
     description=("Python implementation for Source servers, RCON, A2S, "
                  "VDF, the Steam Web API and various other Valve products "
                  "and services."),
