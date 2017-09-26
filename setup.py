@@ -30,12 +30,13 @@ def install_requires():
 setuptools.setup(
     name="python-valve",
     version="0.2.0",
-    description=("Python implemntation RCON, A2S, VDF, the Steam Web "
-                 "API and various other Valve products and services."),
+    description=("Python implementation for Source servers, RCON, A2S, "
+                 "VDF, the Steam Web API and various other Valve products "
+                 "and services."),
     long_description=readme(),
     author="Oliver Ainsworth",
     author_email="ottajay@googlemail.com",
-    url="https://github.com/Holiverh/python-valve",
+    url="https://github.com/serverstf/python-valve",
     packages=setuptools.find_packages(exclude=["tests"]),
     install_requires=install_requires(),
     extras_require={
