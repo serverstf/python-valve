@@ -6,15 +6,12 @@ from __future__ import (absolute_import,
 
 import monotonic
 
-import valve.source
+from .basequerier import BaseQuerier, NoResponseError
 from . import messages
 
 
-# NOTE: backwards compatability; remove soon(tm)
-NoResponseError = valve.source.NoResponseError
 
-
-class ServerQuerier(valve.source.BaseQuerier):
+class ServerQuerier(BaseQuerier):
     """Implements the A2S Source server query protocol.
 
     https://developer.valvesoftware.com/wiki/Server_queries
@@ -30,7 +27,7 @@ class ServerQuerier(valve.source.BaseQuerier):
 
     def get_response(self):
 
-        data = valve.source.BaseQuerier.get_response(self)
+        data = BaseQuerier.get_response(self)
 
         # According to https://developer.valvesoftware.com/wiki/Server_queries
         # "TF2 currently does not split replies, expect A2S_PLAYER and
