@@ -9,7 +9,7 @@ import itertools
 
 import six
 
-import valve.source
+from .basequerier import BaseQuerier, NoResponseError
 from . import messages
 from . import util
 
@@ -44,7 +44,7 @@ class Duplicates(enum.Enum):
     STOP = "stop"
 
 
-class MasterServerQuerier(valve.source.BaseQuerier):
+class MasterServerQuerier(BaseQuerier):
     """Implements the Source master server query protocol
 
     https://developer.valvesoftware.com/wiki/Master_Server_Query_Protocol
@@ -103,7 +103,7 @@ class MasterServerQuerier(valve.source.BaseQuerier):
                 region=region, address=last_addr, filter=filter_string))
             try:
                 raw_response = self.get_response()
-            except valve.source.NoResponseError:
+            except NoResponseError:
                 return
             else:
                 response = messages.MasterServerResponse.decode(raw_response)
