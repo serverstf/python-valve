@@ -6,10 +6,12 @@ from __future__ import (absolute_import,
 
 import collections
 import struct
+import io
 
 import six
 
 from . import util
+from .byteio import ByteReader
 
 
 NO_SPLIT = -1
@@ -448,26 +450,54 @@ class InfoRequest(Message):
     )
 
 
-class InfoResponse(Message):
+class InfoResponse():
 
-    fields = (
-        ByteField("response_type", validators=[lambda x: x == 0x49]),
-        ByteField("protocol"),
-        StringField("server_name"),
-        StringField("map"),
-        StringField("folder"),
-        StringField("game"),
-        ShortField("app_id"),
-        ByteField("player_count"),
-        ByteField("max_players"),
-        ByteField("bot_count"),
-        ServerTypeField("server_type"),
-        PlatformField("platform"),
-        ByteField("password_protected"),  # BooleanField
-        ByteField("vac_enabled"),  # BooleanField
-        StringField("version")
-        # TODO: EDF
-    )
+    def __init__(self, packet=None):
+        if packet is not None:
+            self.read(packet)
+
+    @staticmethod
+    def decode(packet):
+        return InfoResponse(packet)
+
+    def read(self, packet):
+        stream = io.BytesIO(packet)
+        reader = ByteReader(stream)
+
+        self.response_type = reader.read_uint8()
+        if self.response_type != 0x49:
+            raise BrokenMessageError(
+                "Invalid value ({}) for field 'response_type'" \
+                .format(self.response_type))
+        self.protocol = reader.read_uint8()
+        self.server_name = reader.read_cstring()
+        self.map = reader.read_cstring()
+        self.folder = reader.read_cstring()
+        self.game = reader.read_cstring()
+        self.app_id = reader.read_int16()
+        self.player_count = reader.read_uint8()
+        self.max_players = reader.read_uint8()
+        self.bot_count = reader.read_uint8()
+        self.server_type = util.ServerType(reader.read_uint8())
+        self.platform = util.Platform(reader.read_uint8())
+        self.password_protected = reader.read_bool()
+        self.vac_enabled = reader.read_bool()
+        self.version = reader.read_cstring()
+        try:
+            self.edf = reader.read_uint8()
+        except struct.error:
+            self.edf = 0
+        if self.edf & 0x80:
+            self.port = reader.read_int16()
+        if self.edf & 0x10:
+            self.steam_id = reader.read_int64()
+        if self.edf & 0x40:
+            self.stv_port = reader.read_int16()
+            self.stv_name = reader.read_cstring()
+        if self.edf & 0x20:
+            self.keywords = reader.read_cstring()
+        if self.edf & 0x01:
+            self.game_id = reader.read_int64()
 
 
 class GetChallengeResponse(Message):
