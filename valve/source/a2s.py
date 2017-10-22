@@ -65,11 +65,11 @@ class ServerQuerier(valve.source.BaseQuerier):
         be negligble.
         """
 
-        time_sent = monontic.monotonic()
+        time_sent = monotonic.monotonic()
         self.request(messages.InfoRequest())
         messages.InfoResponse.decode(self.get_response())
         time_received = monotonic.monotonic()
-        return (time_received - t_sent) * 1000.0
+        return (time_received - time_sent) * 1000.0
 
     def info(self):
         """Retreive information about the server state
