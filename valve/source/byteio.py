@@ -1,26 +1,41 @@
+# -*- coding: utf-8 -*-
+# Copyright (C) 2017 Oliver Ainsworth
+
 import struct
 import io
 
-class ByteReader(object):
-    def __init__(self, stream, endian='='):
+from .util import BufferExhaustedError
+
+
+
+class ByteReader():
+    def __init__(self, stream, endian="=", encoding=None):
         self.stream = stream
         self.endian = endian
+        self.encoding = encoding
 
-    def read(self, *args):
-        return self.stream.read(*args)
+    def read(self, size=-1):
+        data = self.stream.read(size)
+        if size > -1 and len(data) != size:
+            raise BufferExhaustedError()
+
+        return data
+
+    def peek(self, size=-1):
+        cur_pos = self.stream.tell()
+        data = self.stream.read(size)
+        self.stream.seek(cur_pos, io.SEEK_SET)
+        return data
 
     def unpack(self, fmt):
         fmt = self.endian + fmt
         fmt_size = struct.calcsize(fmt)
-        return struct.unpack(fmt, self.stream.read(fmt_size))
+        return struct.unpack(fmt, self.read(fmt_size))
 
     def unpack_one(self, fmt):
         values = self.unpack(fmt)
         assert len(values) == 1
         return values[0]
-
-    def read_char(self):
-        return self.unpack_one("c")
 
     def read_int8(self):
         return self.unpack_one("b")
@@ -52,6 +67,16 @@ class ByteReader(object):
     def read_double(self):
         return self.unpack_one("d")
 
+    def read_bool(self):
+        return bool(self.unpack("b"))
+
+    def read_char(self):
+        char = self.unpack_one("c")
+        if self.encoding is not None:
+            return char.decode(self.encoding)
+        else:
+            return char
+
     def read_cstring(self, charsize=1):
         string = b""
         while True:
@@ -60,34 +85,22 @@ class ByteReader(object):
                 break
             else:
                 string += c
-        return string
 
-    def read_vec3(self):
-        return self.unpack("4f")
+        if self.encoding is not None:
+            return string.decode(self.encoding)
+        else:
+            return string
 
-    def read_vec4(self):
-        return self.unpack("4f")
-
-    def read_vec3x3(self):
-        return (self.read_vec3() for i in range(3))
-
-    def read_vec4x4(self):
-        return (self.read_vec4() for i in range(4))
-
-    def read_bool(self):
-        return bool(self.unpack("b"))
-
-    def align(self, num):
-        current_pos = self.stream.tell()
-        align_bytes = num - (current_pos % num)
-        if align_bytes != num:
-            self.stream.seek(align_bytes, io.SEEK_CUR)
+    def read_ip(self):
+        octets = [self.read_uint8() for i in range(4)]
+        return ".".join(str(o) for o in octets)
 
 
-class ByteWriter(object):
-    def __init__(self, stream, endian='='):
+class ByteWriter():
+    def __init__(self, stream, endian="=", encoding=None):
         self.stream = stream
         self.endian = endian
+        self.encoding = encoding
 
     def write(self, *args):
         return self.stream.write(*args)
@@ -96,9 +109,6 @@ class ByteWriter(object):
         fmt = self.endian + fmt
         fmt_size = struct.calcsize(fmt)
         return self.stream.write(struct.pack(fmt, *values))
-
-    def write_char(self, val):
-        self.pack("c", val)
 
     def write_int8(self, val):
         self.pack("b", val)
@@ -130,25 +140,17 @@ class ByteWriter(object):
     def write_double(self, val):
         self.pack("d", val)
 
-    def write_vec3(self, val):
-        self.pack("4f", *val)
-
-    def write_vec4(self, val):
-        self.pack("4f", *val)
-
-    def write_vec3x3(self, val):
-        for vec in val:
-            self.write_vec3(vec)
-
-    def write_vec4x4(self, val):
-        for vec in val:
-            self.write_vec4(vec)
-
     def write_bool(self, val):
         self.pack("b", val)
 
-    def align(self, num):
-        current_pos = self.stream.tell()
-        align_bytes = num - (current_pos % num)
-        if align_bytes != num:
-            self.stream.seek(align_bytes, io.SEEK_CUR)
+    def write_char(self, val):
+        if self.encoding is not None:
+            self.pack("c", val.encode(self.encoding))
+        else:
+            self.pack("c", val)
+
+    def write_cstring(self, val):
+        if self.encoding is not None:
+            self.write(val.encode(self.encoding) + b"\x00")
+        else:
+            self.write(val + b"\x00")

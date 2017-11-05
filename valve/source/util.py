@@ -1,15 +1,25 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2014-2017 Oliver Ainsworth
 
-from __future__ import (absolute_import,
-                        unicode_literals, print_function, division)
-
-import sys
-
-import six
+class BrokenMessageError(Exception):
+    pass
 
 
-class Platform(object):
+class BufferExhaustedError(BrokenMessageError):
+
+    def __init__(self, message="Incomplete message"):
+        BrokenMessageError.__init__(self, message)
+
+
+class NoResponseError(Exception):
+    """Raised when a server querier doesn't receive a response."""
+
+
+class QuerierClosedError(Exception):
+    """Raised when attempting to use a querier after it's closed."""
+
+
+class Platform():
     """A Source server platform identifier
 
     This class provides utilities for representing Source server platforms
@@ -50,7 +60,7 @@ class Platform(object):
         * Mac OS X
         * Windows
         """
-        if isinstance(value, six.text_type):
+        if isinstance(value, str):
             if len(value) == 1:
                 value = ord(value)
             else:
@@ -70,7 +80,7 @@ class Platform(object):
         return "<{self.__class__.__name__} " \
                "{self.value} '{self}'>".format(self=self)
 
-    def __unicode__(self):
+    def __str__(self):
         return {
             76: "Linux",
             108: "Linux",
@@ -78,16 +88,6 @@ class Platform(object):
             111: "Mac OS X",
             119: "Windows",
         }[self.value]
-
-    if six.PY3:
-        def __str__(self):
-            return self.__unicode__()
-
-        def __bytes__(self):
-            return self.__unicode__().encode(sys.getdefaultencoding())
-    else:
-        def __str__(self):
-            return self.__unicode__().encode(sys.getdefaultencoding())
 
     def __int__(self):
         return self.value
@@ -142,7 +142,7 @@ Platform.MAC_OS_X = Platform(111)
 Platform.WINDOWS = Platform(119)
 
 
-class ServerType(object):
+class ServerType():
     """A Source server platform identifier
 
     This class provides utilities for representing Source server types
@@ -181,7 +181,7 @@ class ServerType(object):
         * Non-Dedicated
         * SourceTV
         """
-        if isinstance(value, six.text_type):
+        if isinstance(value, str):
             if len(value) == 1:
                 value = ord(value)
             else:
@@ -202,23 +202,13 @@ class ServerType(object):
         return "<{self.__class__.__name__} " \
                "{self.value} '{self}'>".format(self=self)
 
-    def __unicode__(self):
+    def __str__(self):
         return {
             68: "Dedicated",
             100: "Dedicated",
             108: "Non-Dedicated",
             112: "SourceTV",
         }[self.value]
-
-    if six.PY3:
-        def __str__(self):
-            return self.__unicode__()
-
-        def __bytes__(self):
-            return self.__unicode__().encode(sys.getdefaultencoding())
-    else:
-        def __str__(self):
-            return self.__unicode__().encode(sys.getdefaultencoding())
 
     def __int__(self):
         return self.value

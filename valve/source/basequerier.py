@@ -1,26 +1,16 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2017 Oliver Ainsworth
 
-from __future__ import (absolute_import,
-                        unicode_literals, print_function, division)
-
 import functools
 import select
 import socket
 import warnings
 
-import six
+from .util import NoResponseError, QuerierClosedError
 
 
-class NoResponseError(Exception):
-    """Raised when a server querier doesn't receive a response."""
 
-
-class QuerierClosedError(Exception):
-    """Raised when attempting to use a querier after it's closed."""
-
-
-class BaseQuerier(object):
+class BaseQuerier():
     """Base class for implementing source server queriers.
 
     When an instance of this class is initialised a socket is created.
@@ -122,7 +112,7 @@ class BaseQuerier(object):
         try:
             data = ready[0][0].recv(1400)
         except socket.error as exc:
-            six.raise_from(NoResponseError(exc))
+            raise NoResponseError(exc)
         return data
 
     del _check_open

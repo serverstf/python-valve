@@ -1,17 +1,13 @@
 # -*- coding: utf-8 -*-
 # Copyright (C) 2013-2017 Oliver Ainsworth
 
-from __future__ import (absolute_import,
-                        unicode_literals, print_function, division)
-
 import enum
 import itertools
-
-import six
 
 from .basequerier import BaseQuerier, NoResponseError
 from . import messages
 from . import util
+
 
 
 REGION_US_EAST_COAST = 0x00
@@ -25,6 +21,7 @@ REGION_AFRICA = 0x07
 REGION_REST = 0xFF
 
 MASTER_SERVER_ADDR = ("hl2master.steampowered.com", 27011)
+
 
 
 class Duplicates(enum.Enum):
@@ -100,18 +97,19 @@ class MasterServerQuerier(BaseQuerier):
         while first_request or last_addr != "0.0.0.0:0":
             first_request = False
             self.request(messages.MasterServerRequest(
-                region=region, address=last_addr, filter=filter_string))
+                region=region, address=last_addr, filter_=filter_string))
             try:
                 raw_response = self.get_response()
             except NoResponseError:
                 return
             else:
                 response = messages.MasterServerResponse.decode(raw_response)
-                for address in response["addresses"]:
-                    last_addr = "{}:{}".format(
-                        address["host"], address["port"])
+                for address in response.addresses:
                     if not address.is_null:
-                        yield address["host"], address["port"]
+                        yield (address.host, address.port)
+
+                last_addr = "{}:{}".format(
+                    response.addresses[-1].host, response.addresses[-1].port)
 
     def _deduplicate(self, method, query):
         """Deduplicate addresses in a :meth:`._query`.
@@ -141,7 +139,7 @@ class MasterServerQuerier(BaseQuerier):
 
         Returns a list of numeric region identifiers.
         """
-        if isinstance(region, six.text_type):
+        if isinstance(region, str):
             try:
                 regions = {
                     "na-east": [REGION_US_EAST_COAST],
@@ -288,20 +286,19 @@ class MasterServerQuerier(BaseQuerier):
         duplicates are excldued from the iterator returned by this method.
         See :class:`Duplicates` for controller this behaviour.
         """
-        if isinstance(region, (int, six.text_type)):
+        if isinstance(region, (int, str)):
             regions = self._map_region(region)
         else:
             regions = []
             for reg in region:
                 regions.extend(self._map_region(reg))
         filter_ = {}
-        for key, value in six.iteritems(filters):
+        for key, value in filters.items():
             if key in {"secure", "linux", "empty",
                        "full", "proxy", "noplayers", "white"}:
                 value = int(bool(value))
             elif key in {"gametype", "gamedata", "gamedataor"}:
-                value = [six.text_type(elt)
-                         for elt in value if six.text_type(elt)]
+                value = [str(elt) for elt in value if str(elt)]
                 if not value:
                     continue
                 value = ",".join(value)
@@ -312,7 +309,7 @@ class MasterServerQuerier(BaseQuerier):
                     value = util.ServerType(value).char
                 else:
                     value = value.char
-            filter_[key] = six.text_type(value)
+            filter_[key] = str(value)
         # Order doesn't actually matter, but it makes testing easier
         filter_ = sorted(filter_.items(), key=lambda pair: pair[0])
         filter_string = "\\".join([part for pair in filter_ for part in pair])
