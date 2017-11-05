@@ -191,9 +191,15 @@ class ServerQuerier(BaseQuerier):
         # just use A2S_PLAYER to get challenge number which should work
         # fine for all servers
         self.request(messages.PlayersRequest(challenge=0))
-        challenge = messages.ChallengeResponse.decode(self.get_response())
-        self.request(messages.PlayersRequest(challenge=challenge.challenge))
-        return messages.PlayersResponse.decode(self.get_response())
+        resp = self.get_response()
+        if not resp:
+            raise BrokenMessageError("Empty Response")
+        elif resp[0] == messages.A2S_CHALLENGE_RESPONSE:
+            challenge = messages.ChallengeResponse.decode(resp)
+            self.request(messages.PlayersRequest(challenge=challenge.challenge))
+            resp = self.get_response()
+
+        return messages.PlayersResponse.decode(resp)
 
     def rules(self):
         """Retreive the server's game mode configuration
