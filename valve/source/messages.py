@@ -132,7 +132,7 @@ class InfoResponse(Message):
         self.map = reader.read_cstring()
         self.folder = reader.read_cstring()
         self.game = reader.read_cstring()
-        self.app_id = reader.read_int16()
+        self.app_id = reader.read_uint16()
         self.player_count = reader.read_uint8()
         self.max_players = reader.read_uint8()
         self.bot_count = reader.read_uint8()
@@ -148,16 +148,16 @@ class InfoResponse(Message):
             self.edf = 0
 
         if self.edf & 0x80:
-            self.port = reader.read_int16()
+            self.port = reader.read_uint16()
         if self.edf & 0x10:
-            self.steam_id = reader.read_int64()
+            self.steam_id = reader.read_uint64()
         if self.edf & 0x40:
-            self.stv_port = reader.read_int16()
+            self.stv_port = reader.read_uint16()
             self.stv_name = reader.read_cstring()
         if self.edf & 0x20:
             self.keywords = reader.read_cstring()
         if self.edf & 0x01:
-            self.game_id = reader.read_int64()
+            self.game_id = reader.read_uint64()
 
 
 class ChallengeResponse(Message):
