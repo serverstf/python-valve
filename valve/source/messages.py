@@ -26,12 +26,6 @@ MASTER_SERVER_REQUEST = 0x31
 
 class Message():
 
-    def __getitem__(self, key):
-        return getattr(self, key)
-
-    def __setitem__(self, key, value):
-        setattr(self, key, value)
-
     @classmethod
     def decode(cls, packet):
         stream = io.BytesIO(packet)
