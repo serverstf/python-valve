@@ -733,6 +733,9 @@ class _RCONShell(cmd.Cmd):
         self._convars = ()
         self.prompt = self._INITIAL_PROMPT
 
+    def _exit(self):
+        self._disconnect()
+
     def default(self, command):
         """Issue a command as an RCON command.
 
@@ -776,6 +779,11 @@ class _RCONShell(cmd.Cmd):
         print("Use !exit to exit this shell or "
               "!shutdown to shutdown the server.")
 
+    def do_EOF(self, _):
+        """Exit by the Ctrl-D shortcut."""
+        self._exit()
+        return True
+
     def do_help(self, command):
         """Print out ConVar-specific or generic help.
 
@@ -818,6 +826,7 @@ class _RCONShell(cmd.Cmd):
 
     def do_shell_exit(self, argv):
         """Exit the shell."""
+        self._exit()
         return True
 
     def do_shell_connect(self, argv):
