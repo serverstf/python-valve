@@ -92,8 +92,7 @@ class ByteReader():
             return string
 
     def read_ip(self):
-        octets = [self.read_uint8() for i in range(4)]
-        return ".".join(str(o) for o in octets)
+        return ".".join(str(o) for o in self.unpack("BBBB"))
 
 
 class ByteWriter():
