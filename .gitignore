@@ -4,6 +4,7 @@ _build/
 build/
 dist/
 htmlcov/
+T
 
 .coverage
 
