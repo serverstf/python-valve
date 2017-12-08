@@ -206,11 +206,12 @@ class _ResponseBuffer(object):
     the complete response, not the constituent parts.
     """
 
-    def __init__(self):
+    def __init__(self, multi_part=True):
         self._buffer = b""
         self._responses = []
         self._partial_responses = []
         self._discard_count = 0
+        self._multi_part = multi_part
 
     def pop(self):
         """Pop first received message from the buffer.
@@ -268,18 +269,21 @@ class _ResponseBuffer(object):
             else:
                 if message.type is message.Type.RESPONSE_VALUE:
                     log.debug("Recevied message part %r", message)
-                    self._partial_responses.append(message)
-                    if len(self._partial_responses) >= 2:
-                        penultimate, last = self._partial_responses[-2:]
-                        if (not penultimate.body
-                                and last.body == b"\x00\x01\x00\x00"):
-                            self._enqueue_or_discard(RCONMessage(
-                                self._partial_responses[0].id,
-                                RCONMessage.Type.RESPONSE_VALUE,
-                                b"".join(part.body for part
-                                         in self._partial_responses[:-2]),
-                            ))
-                            del self._partial_responses[:]
+                    if self._multi_part:
+                        self._partial_responses.append(message)
+                        if len(self._partial_responses) >= 2:
+                            penultimate, last = self._partial_responses[-2:]
+                            if (not penultimate.body
+                                    and last.body == b"\x00\x01\x00\x00"):
+                                self._enqueue_or_discard(RCONMessage(
+                                    self._partial_responses[0].id,
+                                    RCONMessage.Type.RESPONSE_VALUE,
+                                    b"".join(part.body for part
+                                             in self._partial_responses[:-2]),
+                                ))
+                                del self._partial_responses[:]
+                    else:
+                        self._enqueue_or_discard(message)
                 else:
                     if self._partial_responses:
                         log.warning("Unexpected message %r", message)
@@ -312,14 +316,15 @@ class RCON(object):
     _REGEX_CVARLIST = re.compile(
         r"-{2,}\n(.+?)-{2,}\n", re.MULTILINE | re.DOTALL)
 
-    def __init__(self, address, password, timeout=None):
+    def __init__(self, address, password, timeout=None, multi_part=True):
         self._address = address
         self._password = password
         self._timeout = timeout if timeout else None
         self._authenticated = False
         self._socket = None
         self._closed = False
-        self._responses = _ResponseBuffer()
+        self._multi_part = multi_part
+        self._responses = _ResponseBuffer(multi_part)
 
     def __enter__(self):
         self.connect()
@@ -569,7 +574,8 @@ class RCON(object):
         if timeout is None:
             timeout = self._timeout
         self._request(RCONMessage.Type.EXECCOMMAND, command)
-        self._request(RCONMessage.Type.RESPONSE_VALUE, "")
+        if self._multi_part:
+            self._request(RCONMessage.Type.RESPONSE_VALUE, "")
         if block:
             try:
                 return self._receive(timeout)
