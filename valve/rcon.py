@@ -623,6 +623,10 @@ def execute(address, password, command, multi_part=True):
         containing the host as a string and the port as an integer.
     :param str password: the password to use to authenticate the connection.
     :param str command: the command to execute on the server.
+    :param bool multi_part: flag for if RCON server supports
+        `Multiple Packet Responses`_.
+
+    .. _Multiple Packet Responses: https://developer.valvesoftware.com/wiki/Source_RCON_Protocol#Multiple-packet_Responses
 
     :raises UnicodeDecodeError: if the response could not be decoded into
         Unicode.
@@ -870,6 +874,7 @@ class _RCONShell(cmd.Cmd):
         """Shutdown the connected server."""
         self.default("exit")
 
+
 def shell(address=None, password=None, multi_part=True):
     """A simple interactive RCON shell.
 
@@ -885,6 +890,10 @@ def shell(address=None, password=None, multi_part=True):
         of the RCON server.
     :param str password: the password for the server. This is ignored if
         ``address`` is not given.
+    :param bool multi_part: flag for if RCON server supports
+        `Multiple Packet Responses`_.
+
+    .. _Multiple Packet Responses: https://developer.valvesoftware.com/wiki/Source_RCON_Protocol#Multiple-packet_Responses
     """
     rcon_shell = _RCONShell(multi_part)
     try:
