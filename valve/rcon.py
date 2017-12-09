@@ -31,9 +31,9 @@ log = logging.getLogger(__name__)
 # See: https://github.com/docopt/docopt/issues/41
 _USAGE = """
 Usage:
-  {program}
-  {program} ADDRESS [-np PASSWORD]
-  {program} ADDRESS -n -p PASSWORD -e COMMAND
+  {program} [-n]
+  {program} ADDRESS [-p PASSWORD] [-n]
+  {program} ADDRESS -p PASSWORD [-n] -e COMMAND
 
 Arguments:
   ADDRESS       Address of the server to connect to. If the port number

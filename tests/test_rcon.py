@@ -540,19 +540,25 @@ class TestMain(object):
         valve.rcon._main([])
         assert shell.called
         assert not execute.called
-        assert shell.call_args[0] == (None, None)
+        assert shell.call_args[0] == (None, None, True)
 
     def test_address_only(self, shell, execute):
         valve.rcon._main(["localhost:9001"])
         assert shell.called
         assert not execute.called
-        assert shell.call_args[0] == (("localhost", 9001), None)
+        assert shell.call_args[0] == (("localhost", 9001), None, True)
 
     def test_address_and_password(self, shell, execute):
         valve.rcon._main(["localhost:9001", "-p", "password"])
         assert shell.called
         assert not execute.called
-        assert shell.call_args[0] == (("localhost", 9001), "password")
+        assert shell.call_args[0] == (("localhost", 9001), "password", True)
+
+    def test_address_and_password_and_no_multi(self, shell, execute):
+        valve.rcon._main(["localhost:9001", "-p", "password", "-n"])
+        assert shell.called
+        assert not execute.called
+        assert shell.call_args[0] == (("localhost", 9001), "password", False)
 
     def test_password_only(self, shell, execute):
         with pytest.raises(docopt.DocoptExit):
@@ -560,17 +566,41 @@ class TestMain(object):
         assert not shell.called
         assert not execute.called
 
+    def test_no_multi_only(self, shell, execute):
+        valve.rcon._main(["-n"])
+        assert shell.called
+        assert not execute.called
+        assert shell.call_args[0] == (None, None, False)
+
     def test_execute(self, capsys, shell, execute):
         execute.return_value = "command output"
         valve.rcon._main(["localhost:9001", "-p", "password", "-e", "foo"])
         assert not shell.called
         assert execute.called
-        assert execute.call_args[0] == (("localhost", 9001), "password", "foo")
+        assert execute.call_args[0] == (
+            ("localhost", 9001), "password", "foo", True
+        )
+        assert capsys.readouterr()[0] == "command output\n"
+
+    def test_execute_no_multi(self, capsys, shell, execute):
+        execute.return_value = "command output"
+        valve.rcon._main(["localhost:9001", "-p", "password", "-n", "-e", "foo"])
+        assert not shell.called
+        assert execute.called
+        assert execute.call_args[0] == (
+            ("localhost", 9001), "password", "foo", False
+        )
         assert capsys.readouterr()[0] == "command output\n"
 
     def test_execute_no_address(self, shell, execute):
         with pytest.raises(docopt.DocoptExit):
             valve.rcon._main(["-p", "password", "-e", "foo"])
+        assert not shell.called
+        assert not execute.called
+
+    def test_execute_no_address_no_multi(self, shell, execute):
+        with pytest.raises(docopt.DocoptExit):
+            valve.rcon._main(["-p", "password", "-n", "-e", "foo"])
         assert not shell.called
         assert not execute.called
 
@@ -580,8 +610,20 @@ class TestMain(object):
         assert not shell.called
         assert not execute.called
 
+    def test_execute_no_password_no_multi(self, shell, execute):
+        with pytest.raises(docopt.DocoptExit):
+            valve.rcon._main(["localhost:9001", "-n", "-e", "foo"])
+        assert not shell.called
+        assert not execute.called
+
     def test_execute_no_address_or_password(self, shell, execute):
         with pytest.raises(docopt.DocoptExit):
             valve.rcon._main(["-e", "foo"])
+        assert not shell.called
+        assert not execute.called
+
+    def test_execute_no_address_or_password_no_multi(self, shell, execute):
+        with pytest.raises(docopt.DocoptExit):
+            valve.rcon._main(["-n", "-e", "foo"])
         assert not shell.called
         assert not execute.called
