@@ -32,8 +32,8 @@ log = logging.getLogger(__name__)
 _USAGE = """
 Usage:
   {program}
-  {program} ADDRESS [-p PASSWORD]
-  {program} ADDRESS -p PASSWORD -e COMMAND
+  {program} ADDRESS [-np PASSWORD]
+  {program} ADDRESS -n -p PASSWORD -e COMMAND
 
 Arguments:
   ADDRESS       Address of the server to connect to. If the port number
@@ -45,6 +45,8 @@ Options:
                 Password to use when authenticating with the server.
   -e COMMAND --execute=COMMAND
                 Command to execute on the server.
+  -n --no-multi
+                Disables support for Multiple Package Respones
 
 By default this will create a shell for connecting and issuing commands
 to an RCON server. You can either specify the host and password as
@@ -611,7 +613,7 @@ class RCON(object):
     del _ensure
 
 
-def execute(address, password, command):
+def execute(address, password, command, multi_part=True):
     """Execute a command on an RCON server.
 
     This is a *very* high-level interface which connects to the given
@@ -633,7 +635,8 @@ def execute(address, password, command):
 
     :returns: the response to the command as a Unicode string.
     """
-    with RCON(address, password) as rcon:
+
+    with RCON(address, password, multi_part=multi_part) as rcon:
         return rcon(command)
 
 
@@ -691,11 +694,12 @@ class _RCONShell(cmd.Cmd):
         !shutdown           Shutdown the server.
         """).strip("\n")
 
-    def __init__(self):
+    def __init__(self, multi_part=True):
         super().__init__()
         self.prompt = self._INITIAL_PROMPT
         self._rcon = None
         self._convars = ()
+        self._multi_part = multi_part
 
     def _connect(self, address, password):
         """Connect to an RCON server.
@@ -714,7 +718,7 @@ class _RCONShell(cmd.Cmd):
         :param password: same as :class:`RCON`.
         """
         self._disconnect()
-        self._rcon = RCON(address, password)
+        self._rcon = RCON(address, password, multi_part=self._multi_part)
         try:
             self._rcon.connect()
             self._rcon.authenticate()
@@ -866,7 +870,7 @@ class _RCONShell(cmd.Cmd):
         """Shutdown the connected server."""
         self.default("exit")
 
-def shell(address=None, password=None):
+def shell(address=None, password=None, multi_part=True):
     """A simple interactive RCON shell.
 
     This will connect to the server identified by the given address using
@@ -882,7 +886,7 @@ def shell(address=None, password=None):
     :param str password: the password for the server. This is ignored if
         ``address`` is not given.
     """
-    rcon_shell = _RCONShell()
+    rcon_shell = _RCONShell(multi_part)
     try:
         if address:
             rcon_shell.onecmd("!connect {0[0]}:{0[1]} {1}".format(
@@ -948,10 +952,12 @@ def _main(argv=None):
         address = _parse_address(arguments["ADDRESS"])
     password = arguments["--password"]
     command = arguments["--execute"]
+    multi_part = not arguments["--no-multi"]
+
     if command is None:
-        shell(address, password)
+        shell(address, password, multi_part)
     else:
-        print(execute(address, password, command))
+        print(execute(address, password, command, multi_part))
 
 
 if __name__ == "__main__":
