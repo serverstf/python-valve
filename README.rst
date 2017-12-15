@@ -23,7 +23,7 @@ To get started, install Python-valve with pip:
 RCON Example
 ------------
 
-In this example we connect to a Source servers remote console and issue
+In this example we connect to a Source server's remote console and issue
 a simple ``echo`` command to it.
 
 .. code:: python
@@ -113,7 +113,7 @@ dependencies, build the docs and then open them in a browser.
 Python 2
 --------
 
-Python-valve supports Python 2.7! However, it's important to bare in
+Python-valve supports Python 2.7! However, it's important to bear in
 mind that Python 2.7 will not be maintained past 2020. Python-valve
 *may* drop support for Python 2.7 in a future major release before 2020
 in order to make use of new, non-backwards compatible Python 3 features.
