@@ -480,7 +480,16 @@ class RCON(object):
         log.debug("Connecting to %s", self._address)
         self._socket = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
-        self._socket.connect(self._address)
+
+        if self._timeout is not None:
+            self._socket.settimeout(self._timeout)
+
+        try:
+            self._socket.connect(self._address)
+        except TimeoutError:
+            raise RCONTimeoutError('Connection to {}:{} timed out'
+                                   .format(self._address[0], self._address[1]))
+
 
     @_ensure('connected')
     @_ensure('closed', False)
