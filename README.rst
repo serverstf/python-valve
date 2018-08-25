@@ -64,7 +64,7 @@ sorted by their score.
                                      key=lambda p: p["score"], reverse=True):
                     print("{score} {name}".format(**player))
         except valve.source.NoResponseError:
-            print "Master server request timed out!"
+            print ("Master server request timed out!")
 
 
 Versioning
