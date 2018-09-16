@@ -56,15 +56,23 @@ sorted by their score.
             for address in msq.find(region=[u"eu", u"as"],
                                     gamedir=u"tf",
                                     map=u"ctf_2fort"):
-                with valve.source.a2s.ServerQuerier(address) as server:
-                    info = server.info()
-                    players = server.players()
+                try:
+                    with valve.source.a2s.ServerQuerier(address) as server:
+                        info = server.info()
+                        players = server.players()
+
+                except valve.source.NoResponseError:
+                    print("Server {}:{} timed out!".format(*address))
+                    continue
+
                 print("{player_count}/{max_players} {server_name}".format(**info))
                 for player in sorted(players["players"],
                                      key=lambda p: p["score"], reverse=True):
                     print("{score} {name}".format(**player))
+
         except valve.source.NoResponseError:
-            print "Master server request timed out!"
+            print("Master server request timed out!")
+
 
 
 Versioning
