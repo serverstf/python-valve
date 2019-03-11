@@ -49,7 +49,7 @@ class ServerQuerier(valve.source.BaseQuerier):
                 raise NotImplementedError("Fragments are compressed")
             fragments[fragment["fragment_id"]] = fragment
             while len(fragments) < fragment["fragment_count"]:
-                data = BaseQuerier.get_response(self)
+                data = valve.source.BaseQuerier.get_response(self)
                 fragment = messages.Fragment.decode(
                     messages.Header.decode(data).payload)
                 fragments[fragment["fragment_id"]] = fragment
