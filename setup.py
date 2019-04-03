@@ -45,8 +45,7 @@ setuptools.setup(
         ],
         "test": [
             "mock==1.0.1",
-            "pytest>=2.8.0",
-            "pytest-capturelog",
+            "pytest>=3.6.0",
             "pytest-cov",
             "pytest-timeout",
         ],

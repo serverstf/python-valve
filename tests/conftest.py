@@ -95,12 +95,10 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("address", server_addresses)
 
 
-def pytest_namespace():
-    return {
-        "Mock": mock.Mock,
-        "MagicMock": mock.MagicMock,
-        "srcds_functional": srcds_functional,
-    }
+def pytest_configure():
+    pytest.Mock = mock.Mock
+    pytest.MagicMock = mock.MagicMock
+    pytest.srcds_functional = srcds_functional
 
 
 @pytest.yield_fixture
