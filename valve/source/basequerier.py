@@ -110,7 +110,7 @@ class BaseQuerier():
         if not ready[0]:
             raise NoResponseError("Timed out waiting for response")
         try:
-            data = ready[0][0].recv(1400)
+            data = ready[0][0].recv(65536)
         except socket.error as exc:
             raise NoResponseError(exc)
         return data
