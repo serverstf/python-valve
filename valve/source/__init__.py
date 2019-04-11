@@ -120,7 +120,7 @@ class BaseQuerier(object):
         if not ready[0]:
             raise NoResponseError("Timed out waiting for response")
         try:
-            data = ready[0][0].recv(1400)
+            data = ready[0][0].recv(65536)
         except socket.error as exc:
             six.raise_from(NoResponseError(exc))
         return data
