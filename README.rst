@@ -19,6 +19,13 @@ interface to various Valve products and services, including:
 To get started, install Python-valve with pip:
 ``pip install python-valve``.
 
+UNMAINTAINED
+------------
+
+This project is no longer actively maintained. The server query part
+has been rewritten and is available as
+`python-a2s <https://github.com/Yepoleb/python-a2s>`__ to not break
+compatibility with projects using the old API.
 
 RCON Example
 ------------
