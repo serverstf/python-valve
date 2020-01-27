@@ -139,7 +139,7 @@ class RCONMessage(object):
 
         :raises UnicodeEncodeError: if the string cannot be encoded as ASCII.
         """
-        self.body = text.encode(self.ENCODING)
+        self.body = text.encode(encoding=self.ENCODING, errors='ignore')
 
     def encode(self):
         """Encode message to a bytestring."""
