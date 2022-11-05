@@ -376,7 +376,7 @@ class MessageDictField(MessageArrayField):
         return entries_dict, buffer
 
 
-class Message(collections.Mapping):
+class Message(collections.abc.Mapping): # edited
 
     fields = ()
 
